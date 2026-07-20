@@ -80,6 +80,7 @@
     -webkit-font-smoothing: antialiased;
   }
   .font-display { font-family: var(--font-display); letter-spacing: -0.02em; }
+  .font-script { font-family: var(--font-script); letter-spacing: 0; }
 }
 
 @utility text-glow {
