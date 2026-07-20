@@ -147,9 +147,21 @@ function LandingPage() {
         const { verifyPaymentByPaymentId } = await import(
           "@/lib/applications.functions"
         );
-        const res = await verifyPaymentByPaymentId({ data: { paymentId } });
+        let res = await verifyPaymentByPaymentId({ data: { paymentId } });
+        for (
+          let attempt = 0;
+          !res.ok && "retryable" in res && res.retryable && attempt < 2;
+          attempt++
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, 2_000));
+          res = await verifyPaymentByPaymentId({ data: { paymentId } });
+        }
         if (res.ok) {
           toast.success("결제가 완료되었습니다.");
+        } else if ("retryable" in res && res.retryable) {
+          toast.info(
+            "결제 승인 확인이 진행 중입니다. 잠시 후 신청 조회에서 확인해주세요.",
+          );
         } else {
           toast.error(res.message ?? "결제 검증에 실패했습니다.");
         }
@@ -794,13 +806,36 @@ function ApplyForm() {
         setStage({ kind: "idle" });
         return;
       }
-      const verifyRes = await verifyPayment({
+      let verifyRes = await verifyPayment({
         data: {
           applicationId: created.applicationId,
           paymentId: created.paymentId,
         },
       });
+      for (
+        let attempt = 0;
+        !verifyRes.ok &&
+        "retryable" in verifyRes &&
+        verifyRes.retryable &&
+        attempt < 2;
+        attempt++
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 2_000));
+        verifyRes = await verifyPayment({
+          data: {
+            applicationId: created.applicationId,
+            paymentId: created.paymentId,
+          },
+        });
+      }
       if (!verifyRes.ok) {
+        if ("retryable" in verifyRes && verifyRes.retryable) {
+          toast.info(
+            "결제 승인 확인이 진행 중입니다. 잠시 후 신청 조회에서 확인해주세요.",
+          );
+          setStage({ kind: "idle" });
+          return;
+        }
         toast.error(verifyRes.message ?? "결제 검증에 실패했습니다.");
         setStage({ kind: "idle" });
         return;
