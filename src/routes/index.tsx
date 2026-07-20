@@ -40,8 +40,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import defaultHeroVideo from "/cover_1080p.mp4";
-import instructorImg from "/최지원.jpeg";
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
@@ -375,7 +373,7 @@ function Hero() {
     >
       <div className="absolute inset-0">
         <video
-          src={defaultHeroVideo.url}
+          src="/cover_1080p.mp4"
           className="h-full w-full object-cover opacity-70"
           autoPlay
           loop
@@ -636,8 +634,8 @@ function Instructor() {
         <div className="mt-12 grid gap-10 md:grid-cols-[minmax(0,1fr)_1.4fr] md:items-start">
           <div className="relative overflow-hidden rounded-2xl border border-border">
             <img
-              src={instructorImg.url}
-              alt="최지원 대표"
+              src="/instructor.jpeg"
+              alt="주식회사 에프팔육이 최지원 대표"
               width={1024}
               height={1280}
               loading="lazy"
