@@ -45,16 +45,22 @@ export async function getPortonePayment(
     `${PORTONE_API_BASE}/payments/${encodeURIComponent(paymentId)}`,
   );
   if (storeId) url.searchParams.set("storeId", storeId);
-  const res = await fetch(url.toString(), {
-    headers: {
-      Authorization: `PortOne ${getApiSecret()}`,
-    },
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`PortOne getPayment failed [${res.status}]: ${body}`);
+
+  // PortOne can briefly return 404 right after the browser SDK resolves,
+  // before the payment record is fully persisted on their side. Retry a few times.
+  let lastStatus = 0;
+  let lastBody = "";
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: `PortOne ${getApiSecret()}` },
+    });
+    if (res.ok) return (await res.json()) as PortonePayment;
+    lastStatus = res.status;
+    lastBody = await res.text();
+    if (res.status !== 404) break;
+    await new Promise((r) => setTimeout(r, 800));
   }
-  return (await res.json()) as PortonePayment;
+  throw new Error(`PortOne getPayment failed [${lastStatus}]: ${lastBody}`);
 }
 
 export async function cancelPortonePayment(
