@@ -51,27 +51,18 @@ export async function getPortonePayment(
     `${PORTONE_API_BASE}/payments/${encodeURIComponent(paymentId)}`,
   );
 
-  // PortOne can briefly return 404 right after the browser SDK resolves,
-  // especially for easy-pay providers whose approval is finalized asynchronously.
-  let lastStatus = 0;
-  let lastBody = "";
-  const maxAttempts = 8;
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `PortOne ${getApiSecret()}` },
-    });
-    if (res.ok) return (await res.json()) as PortonePayment;
-    lastStatus = res.status;
-    lastBody = await res.text();
-    if (res.status !== 404) break;
-    if (attempt < maxAttempts - 1) {
-      await new Promise((r) => setTimeout(r, 1_000));
-    }
-  }
-  if (lastStatus === 404 && lastBody.includes("PAYMENT_NOT_FOUND")) {
+  // Keep each verification request short. The caller owns the polling cadence;
+  // retrying here as well multiplies the wait and can leave the checkout UI
+  // blocked for minutes.
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `PortOne ${getApiSecret()}` },
+  });
+  if (res.ok) return (await res.json()) as PortonePayment;
+  const body = await res.text();
+  if (res.status === 404 && body.includes("PAYMENT_NOT_FOUND")) {
     throw new PortonePaymentPendingError(paymentId);
   }
-  throw new Error(`PortOne getPayment failed [${lastStatus}]: ${lastBody}`);
+  throw new Error(`PortOne getPayment failed [${res.status}]: ${body}`);
 }
 
 export async function cancelPortonePayment(
