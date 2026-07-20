@@ -759,7 +759,7 @@ function ApplyForm() {
     setIsSubmitting(true);
 
     try {
-      const { createApplication, verifyPayment } = await import(
+      const { createApplication, verifyPayment, confirmBrowserPayment } = await import(
         "@/lib/applications.functions"
       );
 
