@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -606,6 +607,15 @@ function Classes() {
             </span>
           </div>
         </div>
+
+        <div className="mt-4 rounded-xl border border-border bg-surface/50 p-4 text-sm text-muted-foreground space-y-1">
+          <p>
+            <span className="font-medium text-foreground">취소/환불 안내</span> · 강좌 2일 전까지 100% 환불, 1일 전 50% 환불, 당일 환불 불가
+          </p>
+          <p>
+            <span className="font-medium text-foreground">문의</span> · f862@film862.com
+          </p>
+        </div>
       </div>
     </section>
   );
@@ -781,6 +791,9 @@ function ApplyForm() {
     schedule1: "",
     schedule2: "",
     payment: "card" as PaymentMethod,
+    receiptEnabled: false,
+    receiptType: "personal" as "personal" | "business",
+    receiptNumber: "",
   });
   const [stage, setStage] = useState<PayStage>({ kind: "idle" });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -810,6 +823,9 @@ function ApplyForm() {
       schedule1: "",
       schedule2: "",
       payment: "card",
+      receiptEnabled: false,
+      receiptType: "personal",
+      receiptNumber: "",
     });
   }
 
@@ -829,12 +845,27 @@ function ApplyForm() {
       return;
     }
 
+    if (form.payment === "bank" && form.receiptEnabled && !form.receiptNumber.trim()) {
+      toast.error(
+        form.receiptType === "personal"
+          ? "현금영수증 발급용 휴대폰 번호를 입력해주세요."
+          : "현금영수증 발급용 사업자번호를 입력해주세요.",
+      );
+      return;
+    }
+
     const combinedSchedule = isPackage
       ? `1강: ${form.schedule1} + 2강: ${form.schedule2}`
       : form.schedule || "일정 개별 조율";
 
     const classKey = form.classKey as ClassKey;
     const paymentMethod = form.payment;
+
+    const receiptSuffix =
+      paymentMethod === "bank" && form.receiptEnabled
+        ? `\n[현금영수증] ${form.receiptType === "personal" ? "개인(휴대폰)" : "사업자"}: ${form.receiptNumber.trim()}`
+        : "";
+    const noteWithReceipt = `${form.note ?? ""}${receiptSuffix}`.trim();
 
     setIsSubmitting(true);
 
@@ -849,7 +880,7 @@ function ApplyForm() {
           phone: form.phone,
           email: form.email,
           password: form.password,
-          note: form.note,
+          note: noteWithReceipt,
           classKey,
           schedule: combinedSchedule,
           paymentMethod,
@@ -1103,6 +1134,31 @@ function ApplyForm() {
           )}
 
 
+          {form.classKey === "class3" && (
+            <div className="rounded-xl border border-neon/40 bg-neon/5 p-4 text-sm">
+              <p className="font-medium text-foreground">
+                신청 완료 후 컨설팅 일정 조율을 위해 입력하신 연락처로 연락 드릴 예정입니다.
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                입력하신 전화번호를 다시한번 확인 해 주시길 바랍니다.
+              </p>
+              <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
+                <div className="rounded-lg border border-border/60 bg-background/40 p-3">
+                  <dt className="text-xs text-muted-foreground">이름</dt>
+                  <dd className="mt-1 font-medium">{form.name || "-"}</dd>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-background/40 p-3">
+                  <dt className="text-xs text-muted-foreground">전화번호</dt>
+                  <dd className="mt-1 font-medium">{form.phone || "-"}</dd>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-background/40 p-3">
+                  <dt className="text-xs text-muted-foreground">이메일</dt>
+                  <dd className="mt-1 font-medium break-all">{form.email || "-"}</dd>
+                </div>
+              </dl>
+            </div>
+          )}
+
           <Field label="결제 방법 *">
             <RadioGroup
               value={form.payment}
@@ -1123,6 +1179,67 @@ function ApplyForm() {
               </label>
             </RadioGroup>
           </Field>
+
+          {form.payment === "bank" && (
+            <div className="space-y-4 rounded-xl border border-border bg-background/30 p-4">
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <Checkbox
+                  checked={form.receiptEnabled}
+                  onCheckedChange={(v) => set("receiptEnabled", v === true)}
+                />
+                <span>현금영수증 신청</span>
+              </label>
+
+              {form.receiptEnabled && (
+                <div className="space-y-3 pl-6">
+                  <RadioGroup
+                    value={form.receiptType}
+                    onValueChange={(v) => {
+                      set("receiptType", v as "personal" | "business");
+                      set("receiptNumber", "");
+                    }}
+                    className="grid grid-cols-2 gap-3"
+                  >
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background/40 p-3 text-sm has-[[data-state=checked]]:border-neon has-[[data-state=checked]]:bg-neon/10">
+                      <RadioGroupItem value="personal" />
+                      개인 (소득공제)
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background/40 p-3 text-sm has-[[data-state=checked]]:border-neon has-[[data-state=checked]]:bg-neon/10">
+                      <RadioGroupItem value="business" />
+                      사업자 (지출증빙)
+                    </label>
+                  </RadioGroup>
+
+                  {form.receiptType === "personal" ? (
+                    <Field label="휴대폰 번호 *">
+                      <Input
+                        name="receipt-phone"
+                        type="tel"
+                        inputMode="numeric"
+                        value={form.receiptNumber}
+                        onChange={(e) => set("receiptNumber", e.target.value)}
+                        placeholder="010-0000-0000"
+                        maxLength={20}
+                      />
+                    </Field>
+                  ) : (
+                    <Field label="사업자번호 *">
+                      <Input
+                        name="receipt-business"
+                        inputMode="numeric"
+                        value={form.receiptNumber}
+                        onChange={(e) => set("receiptNumber", e.target.value)}
+                        placeholder="000-00-00000"
+                        maxLength={20}
+                      />
+                    </Field>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+
 
 
           <Field label="비고">
