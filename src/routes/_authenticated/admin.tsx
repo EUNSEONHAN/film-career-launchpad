@@ -16,11 +16,24 @@ export const Route = createFileRoute("/_authenticated/admin")({
 });
 
 const CLASS_LABELS: Record<string, string> = {
-  career: "1강 · 진로 탐색",
-  docs: "2강 · 취업 서류",
-  consult: "3강 · 1:1 컨설팅",
+  class1: "1강 · 진로 탐색",
+  class2: "2강 · 취업 서류",
+  class3: "3강 · 1:1 컨설팅",
   package: "스타터 PKG",
 };
+
+const PAYMENT_LABELS: Record<string, string> = {
+  card: "카드",
+  kakaopay: "카카오페이",
+  bank: "무통장입금",
+};
+
+function splitPackageSchedule(schedule: string): { class1: string; class2: string } {
+  const s = schedule ?? "";
+  const m = s.match(/1강:\s*(.*?)\s*(?:\+\s*2강:\s*(.*))?$/);
+  return { class1: m?.[1]?.trim() ?? "", class2: m?.[2]?.trim() ?? "" };
+}
+
 
 function AdminPage() {
   const navigate = useNavigate();
