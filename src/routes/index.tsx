@@ -790,6 +790,9 @@ function ApplyForm() {
     schedule1: "",
     schedule2: "",
     payment: "card" as PaymentMethod,
+    receiptEnabled: false,
+    receiptType: "personal" as "personal" | "business",
+    receiptNumber: "",
   });
   const [stage, setStage] = useState<PayStage>({ kind: "idle" });
   const [isSubmitting, setIsSubmitting] = useState(false);
