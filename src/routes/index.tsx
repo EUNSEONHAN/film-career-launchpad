@@ -648,18 +648,24 @@ async function openPortonePayment(args: {
           easyPay: { easyPayProvider: "EASY_PAY_PROVIDER_KAKAOPAY" as const },
         }
       : { payMethod: "CARD" as const };
-  const res = await PortOne.requestPayment({
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  const safeOrderName = args.orderName.replace(/[·]/g, "-").slice(0, 40);
+  const payload: Record<string, unknown> = {
     storeId: cfg.storeId,
     channelKey,
-
     paymentId: args.paymentId,
-    orderName: args.orderName,
+    orderName: safeOrderName,
     totalAmount: args.totalAmount,
     currency: "CURRENCY_KRW",
     customer: args.customer,
-    redirectUrl: `${window.location.origin}/?portone=${encodeURIComponent(args.paymentId)}`,
     ...req,
-  } as Parameters<typeof PortOne.requestPayment>[0]);
+  };
+  if (isMobile) {
+    payload.redirectUrl = `${window.location.origin}/?portone=${encodeURIComponent(args.paymentId)}`;
+  }
+  const res = await PortOne.requestPayment(
+    payload as Parameters<typeof PortOne.requestPayment>[0],
+  );
   if (res?.code) {
     return { ok: false, message: res.message ?? "결제가 취소되었습니다." };
   }
