@@ -57,7 +57,7 @@ const CLASS_OPTIONS: {
 }[] = [
   {
     key: "class1",
-    title: "1. 영화 영상 진로탐색",
+    title: "1. 영화·영상 진로탐색",
     price: "100,000원",
     schedules: ["8월 5일(수) 16:00~18:00", "8월 6일(목) 19:00~21:00"],
   },
@@ -229,7 +229,7 @@ function MobilePaymentSuccessDialog({
   onClose: () => void;
 }) {
   const classLabel: Record<string, string> = {
-    class1: "영화 영상 진로탐색",
+    class1: "영화·영상 진로탐색",
     class2: "취업 서류 3종 완성",
     class3: "1:1 커리어 컨설팅",
     package: "스타터 PKG (1+2)",
@@ -480,10 +480,10 @@ function Classes() {
   const classes = [
     {
       num: "01",
-      title: "영화 영상 진로탐색",
+      title: "영화·영상 진로탐색",
       price: "100,000원",
       desc: "다양한 사업과 직무를 이해하고, 나에게 맞는 진로를 찾아봅니다.",
-      bullets: ["영화 영상 산업 구조 이해", "나에게 맞는건? 현장직 vs 사무직"],
+      bullets: ["영화·영상 산업 구조 이해", "나에게 맞는건? 현장직 vs 사무직"],
       schedules: ["8월 5일(수) 16:00~18:00", "8월 6일(목) 19:00~21:00"],
     },
     {
