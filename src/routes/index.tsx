@@ -643,10 +643,7 @@ async function openPortonePayment(args: {
   const PortOne = (await import("@portone/browser-sdk/v2")).default;
   const req =
     args.method === "kakaopay"
-      ? {
-          payMethod: "EASY_PAY" as const,
-          easyPay: { easyPayProvider: "EASY_PAY_PROVIDER_KAKAOPAY" as const },
-        }
+      ? { payMethod: "EASY_PAY" as const }
       : { payMethod: "CARD" as const };
   const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   const safeOrderName = args.orderName.replace(/[·]/g, "-").slice(0, 40);
@@ -656,7 +653,7 @@ async function openPortonePayment(args: {
     paymentId: args.paymentId,
     orderName: safeOrderName,
     totalAmount: args.totalAmount,
-    currency: "CURRENCY_KRW",
+    currency: "KRW",
     customer: args.customer,
     ...req,
   };
