@@ -1,24 +1,28 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-async function assertAdmin(context: { supabase: any; userId: string }) {
-  const { data, error } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
-    _role: "admin",
-  });
+async function isAdmin(context: { supabase: any; userId: string }): Promise<boolean> {
+  const { data, error } = await context.supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", context.userId)
+    .eq("role", "admin")
+    .maybeSingle();
   if (error) throw new Error("권한 확인 실패");
-  if (!data) throw new Error("Forbidden: 관리자 권한이 필요합니다");
+  return !!data;
+}
+
+async function assertAdmin(context: { supabase: any; userId: string }) {
+  if (!(await isAdmin(context))) throw new Error("Forbidden: 관리자 권한이 필요합니다");
 }
 
 export const checkIsAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
-    return { isAdmin: !!data, userId: context.userId };
+    const ok = await isAdmin(context);
+    return { isAdmin: ok, userId: context.userId };
   });
+
 
 export const listApplications = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
