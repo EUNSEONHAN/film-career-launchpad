@@ -138,7 +138,7 @@ function LandingPage() {
       <Classes />
       <Instructor />
       <ApplyForm />
-      <Footer onOpenCheck={() => setCheckOpen(true)} />
+      <Footer />
       <CheckDialog open={checkOpen} onOpenChange={setCheckOpen} />
     </div>
   );
