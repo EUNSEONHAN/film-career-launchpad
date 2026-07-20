@@ -1200,7 +1200,9 @@ function CheckDialog({
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [results, setResults] = useState<Application[] | null>(null);
+  const [results, setResults] = useState<AppRecord[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [refundingId, setRefundingId] = useState<string | null>(null);
 
   function reset() {
     setEmail("");
@@ -1211,24 +1213,55 @@ function CheckDialog({
     if (!open) reset();
   }, [open]);
 
-  function search(e: React.FormEvent) {
+  async function search(e: React.FormEvent) {
     e.preventDefault();
-    const list = loadApps().filter(
-      (a) => a.email === email.toLowerCase().trim() && a.password === password,
-    );
-    setResults(list);
-    if (list.length === 0) toast.error("일치하는 신청 내역이 없습니다.");
+    setLoading(true);
+    try {
+      const { lookupApplications } = await import(
+        "@/lib/applications.functions"
+      );
+      const list = (await lookupApplications({
+        data: { email, password },
+      })) as AppRecord[];
+      setResults(list);
+      if (list.length === 0) toast.error("일치하는 신청 내역이 없습니다.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "조회 실패");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function refund(id: string) {
-    const list = loadApps().map((a) =>
-      a.id === id ? { ...a, status: "refunded" as const } : a,
-    );
-    saveApps(list);
-    setResults((r) =>
-      r?.map((a) => (a.id === id ? { ...a, status: "refunded" } : a)) ?? null,
-    );
-    toast.success("환불 신청이 접수되었습니다.");
+  async function refund(id: string) {
+    setRefundingId(id);
+    try {
+      const { requestRefund } = await import("@/lib/applications.functions");
+      const res = await requestRefund({
+        data: { applicationId: id, email, password },
+      });
+      if (res.alreadyRequested) {
+        toast.info("이미 환불이 요청된 신청입니다.");
+      } else if (res.refunded) {
+        toast.success("환불이 완료되었습니다.");
+      } else {
+        toast.success("환불 요청이 접수되었습니다. 관리자 확인 후 처리됩니다.");
+      }
+      setResults(
+        (r) =>
+          r?.map((a) =>
+            a.id === id
+              ? {
+                  ...a,
+                  status: res.refunded ? "refunded" : "refund_requested",
+                }
+              : a,
+          ) ?? null,
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "환불 요청 실패");
+    } finally {
+      setRefundingId(null);
+    }
   }
 
   return (
@@ -1261,9 +1294,16 @@ function CheckDialog({
             </Field>
             <Button
               type="submit"
+              disabled={loading}
               className="w-full bg-neon text-neon-foreground hover:bg-neon/90"
             >
-              조회
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 조회 중...
+                </>
+              ) : (
+                "조회"
+              )}
             </Button>
           </form>
         )}
@@ -1271,7 +1311,15 @@ function CheckDialog({
         {results && (
           <div className="space-y-3">
             {results.map((a) => {
-              const c = CLASS_OPTIONS.find((x) => x.key === a.classKey);
+              const c = CLASS_OPTIONS.find((x) => x.key === a.class_key);
+              const paymentLabel =
+                a.payment_method === "card"
+                  ? "카드결제"
+                  : a.payment_method === "kakaopay"
+                    ? "카카오페이"
+                    : "무통장입금";
+              const canRefund =
+                a.status !== "refunded" && a.status !== "refund_requested";
               return (
                 <div
                   key={a.id}
@@ -1284,19 +1332,27 @@ function CheckDialog({
                         {a.schedule}
                       </div>
                       <div className="mt-2 text-xs text-muted-foreground">
-                        {a.payment === "card" ? "카드결제" : "무통장입금"}
+                        {paymentLabel} · {a.amount.toLocaleString()}원
                       </div>
                     </div>
                     <StatusPill status={a.status} />
                   </div>
-                  {a.status !== "refunded" && (
+                  {canRefund && (
                     <Button
                       variant="outline"
                       size="sm"
+                      disabled={refundingId === a.id}
                       onClick={() => refund(a.id)}
                       className="mt-3 w-full border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >
-                      환불 신청
+                      {refundingId === a.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />{" "}
+                          처리 중...
+                        </>
+                      ) : (
+                        "환불 신청"
+                      )}
                     </Button>
                   )}
                 </div>
@@ -1317,16 +1373,26 @@ function CheckDialog({
   );
 }
 
-function StatusPill({ status }: { status: Application["status"] }) {
-  const map = {
+function StatusPill({ status }: { status: ApplicationStatus }) {
+  const map: Record<ApplicationStatus, { label: string; cls: string }> = {
     pending: { label: "결제 대기", cls: "bg-yellow-500/15 text-yellow-400" },
+    bank_pending: {
+      label: "입금 대기",
+      cls: "bg-yellow-500/15 text-yellow-400",
+    },
     paid: { label: "결제 완료", cls: "bg-neon/15 text-neon" },
+    failed: { label: "결제 실패", cls: "bg-destructive/15 text-destructive" },
+    refund_requested: {
+      label: "환불 요청됨",
+      cls: "bg-orange-500/15 text-orange-400",
+    },
     refunded: { label: "환불 완료", cls: "bg-muted text-muted-foreground" },
-  } as const;
+  };
   const m = map[status];
   return (
     <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs ${m.cls}`}>
       {m.label}
+
     </span>
   );
 }
