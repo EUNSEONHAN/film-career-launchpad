@@ -844,12 +844,23 @@ function ApplyForm() {
       return;
     }
 
+    if (paymentMethod_receipt_check(form)) {
+      toast.error("현금영수증 번호를 입력해주세요.");
+      return;
+    }
+
     const combinedSchedule = isPackage
       ? `1강: ${form.schedule1} + 2강: ${form.schedule2}`
       : form.schedule || "일정 개별 조율";
 
     const classKey = form.classKey as ClassKey;
     const paymentMethod = form.payment;
+
+    const receiptSuffix =
+      paymentMethod === "bank" && form.receiptEnabled
+        ? `\n[현금영수증] ${form.receiptType === "personal" ? "개인(휴대폰)" : "사업자"}: ${form.receiptNumber.trim()}`
+        : "";
+    const noteWithReceipt = `${form.note ?? ""}${receiptSuffix}`.trim();
 
     setIsSubmitting(true);
 
@@ -864,7 +875,7 @@ function ApplyForm() {
           phone: form.phone,
           email: form.email,
           password: form.password,
-          note: form.note,
+          note: noteWithReceipt,
           classKey,
           schedule: combinedSchedule,
           paymentMethod,
