@@ -963,11 +963,12 @@ function ApplyForm() {
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" /> 처리 중...
               </>
-            ) : form.payment === "card" ? (
-              "결제하기"
-            ) : (
+            ) : form.payment === "bank" ? (
               "신청하기"
+            ) : (
+              "결제하기"
             )}
+
           </Button>
         </form>
       </div>
@@ -1011,8 +1012,9 @@ function PaymentProcessingDialog({
   method,
 }: {
   open: boolean;
-  method: "card" | "bank";
+  method: PaymentMethod;
 }) {
+
   return (
     <Dialog open={open}>
       <DialogContent
