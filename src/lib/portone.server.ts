@@ -37,6 +37,13 @@ export type PortonePayment = {
   failure?: { message?: string };
 };
 
+export class PortonePaymentPendingError extends Error {
+  constructor(paymentId: string) {
+    super(`Payment lookup is still pending: ${paymentId}`);
+    this.name = "PortonePaymentPendingError";
+  }
+}
+
 export async function getPortonePayment(
   paymentId: string,
 ): Promise<PortonePayment> {
@@ -47,10 +54,11 @@ export async function getPortonePayment(
   if (storeId) url.searchParams.set("storeId", storeId);
 
   // PortOne can briefly return 404 right after the browser SDK resolves,
-  // before the payment record is fully persisted on their side. Retry a few times.
+  // especially for easy-pay providers whose approval is finalized asynchronously.
   let lastStatus = 0;
   let lastBody = "";
-  for (let attempt = 0; attempt < 5; attempt++) {
+  const maxAttempts = 8;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const res = await fetch(url.toString(), {
       headers: { Authorization: `PortOne ${getApiSecret()}` },
     });
@@ -58,7 +66,12 @@ export async function getPortonePayment(
     lastStatus = res.status;
     lastBody = await res.text();
     if (res.status !== 404) break;
-    await new Promise((r) => setTimeout(r, 800));
+    if (attempt < maxAttempts - 1) {
+      await new Promise((r) => setTimeout(r, 1_000));
+    }
+  }
+  if (lastStatus === 404 && lastBody.includes("PAYMENT_NOT_FOUND")) {
+    throw new PortonePaymentPendingError(paymentId);
   }
   throw new Error(`PortOne getPayment failed [${lastStatus}]: ${lastBody}`);
 }

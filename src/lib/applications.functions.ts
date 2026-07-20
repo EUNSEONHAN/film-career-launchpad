@@ -107,8 +107,37 @@ export const verifyPayment = createServerFn({ method: "POST" })
       throw new Error("Payment ID mismatch");
     }
 
-    const payment = await getPortonePayment(data.paymentId);
+    let payment;
+    try {
+      payment = await getPortonePayment(data.paymentId);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.name === "PortonePaymentPendingError"
+      ) {
+        return {
+          ok: false as const,
+          status: "PENDING" as const,
+          retryable: true as const,
+          message: "결제 승인 결과를 확인하고 있습니다.",
+        };
+      }
+      throw error;
+    }
     const paidAmount = payment.amount?.total ?? 0;
+
+    if (
+      payment.status === "READY" ||
+      payment.status === "PENDING" ||
+      payment.status === "VIRTUAL_ACCOUNT_ISSUED"
+    ) {
+      return {
+        ok: false as const,
+        status: payment.status,
+        retryable: true as const,
+        message: "결제 승인 결과를 확인하고 있습니다.",
+      };
+    }
 
     if (payment.status !== "PAID" || paidAmount !== app.amount) {
       await supabaseAdmin
@@ -152,8 +181,37 @@ export const verifyPaymentByPaymentId = createServerFn({ method: "POST" })
       .single();
     if (fetchError || !app) throw new Error("Application not found");
 
-    const payment = await getPortonePayment(data.paymentId);
+    let payment;
+    try {
+      payment = await getPortonePayment(data.paymentId);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.name === "PortonePaymentPendingError"
+      ) {
+        return {
+          ok: false as const,
+          status: "PENDING" as const,
+          retryable: true as const,
+          message: "결제 승인 결과를 확인하고 있습니다.",
+        };
+      }
+      throw error;
+    }
     const paidAmount = payment.amount?.total ?? 0;
+
+    if (
+      payment.status === "READY" ||
+      payment.status === "PENDING" ||
+      payment.status === "VIRTUAL_ACCOUNT_ISSUED"
+    ) {
+      return {
+        ok: false as const,
+        status: payment.status,
+        retryable: true as const,
+        message: "결제 승인 결과를 확인하고 있습니다.",
+      };
+    }
 
     if (payment.status !== "PAID" || paidAmount !== app.amount) {
       await supabaseAdmin
