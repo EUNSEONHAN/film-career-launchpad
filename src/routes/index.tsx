@@ -90,35 +90,42 @@ const NAV = [
   { id: "check", label: "신청 조회" },
 ];
 
-type Application = {
+type PaymentMethod = "card" | "kakaopay" | "bank";
+type ApplicationStatus =
+  | "pending"
+  | "bank_pending"
+  | "paid"
+  | "failed"
+  | "refund_requested"
+  | "refunded";
+
+// Server-shaped record returned from lookupApplications.
+type AppRecord = {
   id: string;
   name: string;
   phone: string;
   email: string;
-  password: string;
-  note: string;
-  classKey: ClassKey;
+  class_key: ClassKey;
   schedule: string;
-  payment: "card" | "bank";
-  status: "pending" | "paid" | "refunded";
-  paymentRef?: string;
-  createdAt: string;
+  payment_method: PaymentMethod;
+  amount: number;
+  status: ApplicationStatus;
+  created_at: string;
+  refund_requested_at: string | null;
+  refunded_at: string | null;
 };
 
-const STORAGE_KEY = "862-academy-applications";
-
-function loadApps(): Application[] {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
-}
-
-function saveApps(list: Application[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-}
+// Client-shaped copy used only for the payment-confirmation dialogs after submit.
+type Application = {
+  id: string;
+  name: string;
+  email: string;
+  classKey: ClassKey;
+  schedule: string;
+  payment: PaymentMethod;
+  paymentRef?: string;
+  amount: number;
+};
 
 function scrollTo(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -128,31 +135,7 @@ function LandingPage() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [checkOpen, setCheckOpen] = useState(false);
 
-  // Admin data-export helpers (available in browser devtools):
-  //   __862.export()           -> JSON blob of all applications
-  //   __862.download()         -> downloads applications.json
-  //   __862.clear()            -> wipe local mock DB
-  useEffect(() => {
-    const api = {
-      export: () => loadApps(),
-      download: () => {
-        const blob = new Blob([JSON.stringify(loadApps(), null, 2)], {
-          type: "application/json",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `862-applications-${new Date().toISOString().slice(0, 10)}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-      },
-      clear: () => {
-        localStorage.removeItem(STORAGE_KEY);
-        return "cleared";
-      },
-    };
-    (window as unknown as { __862?: typeof api }).__862 = api;
-  }, []);
+
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -588,7 +571,7 @@ function Instructor() {
 /* -------------------- APPLY FORM -------------------- */
 type PayStage =
   | { kind: "idle" }
-  | { kind: "processing"; method: "card" | "bank" }
+  | { kind: "processing"; method: PaymentMethod }
   | { kind: "card-success"; app: Application }
   | { kind: "bank-pending"; app: Application };
 
@@ -610,13 +593,45 @@ function priceOf(key: ClassKey): number {
   }
 }
 
-async function mockPortonePay(app: Application): Promise<{ ok: true; impUid: string }> {
-  // Simulate Portone SDK popup + PG authorization
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({ ok: true, impUid: `imp_${Date.now()}_${app.id.slice(0, 6)}` });
-    }, 1600);
-  });
+// PortOne V2 browser SDK — loaded dynamically on demand (browser only).
+async function openPortonePayment(args: {
+  method: "card" | "kakaopay";
+  paymentId: string;
+  orderName: string;
+  totalAmount: number;
+  customer: { fullName: string; email: string; phoneNumber: string };
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { PORTONE_STORE_ID, PORTONE_CHANNEL_KEYS, isPortoneConfigured } =
+    await import("@/config/portone");
+  if (!isPortoneConfigured(args.method)) {
+    return {
+      ok: false,
+      message:
+        "결제 설정이 완료되지 않았습니다. 관리자에게 문의해주세요. (PortOne 키 미설정)",
+    };
+  }
+  const PortOne = (await import("@portone/browser-sdk/v2")).default;
+  const req =
+    args.method === "kakaopay"
+      ? {
+          payMethod: "EASY_PAY" as const,
+          easyPay: { easyPayProvider: "EASY_PAY_PROVIDER_KAKAOPAY" as const },
+        }
+      : { payMethod: "CARD" as const };
+  const res = await PortOne.requestPayment({
+    storeId: PORTONE_STORE_ID,
+    channelKey: PORTONE_CHANNEL_KEYS[args.method],
+    paymentId: args.paymentId,
+    orderName: args.orderName,
+    totalAmount: args.totalAmount,
+    currency: "CURRENCY_KRW",
+    customer: args.customer,
+    ...req,
+  } as Parameters<typeof PortOne.requestPayment>[0]);
+  if (res?.code) {
+    return { ok: false, message: res.message ?? "결제가 취소되었습니다." };
+  }
+  return { ok: true };
 }
 
 function ApplyForm() {
@@ -630,7 +645,7 @@ function ApplyForm() {
     schedule: "",
     schedule1: "",
     schedule2: "",
-    payment: "card" as "card" | "bank",
+    payment: "card" as PaymentMethod,
   });
   const [stage, setStage] = useState<PayStage>({ kind: "idle" });
 
@@ -682,46 +697,91 @@ function ApplyForm() {
       ? `1강: ${form.schedule1} + 2강: ${form.schedule2}`
       : form.schedule || "일정 개별 조율";
 
+    const classKey = form.classKey as ClassKey;
+    const paymentMethod = form.payment;
 
-    const baseApp: Application = {
-      id: crypto.randomUUID(),
-      name: form.name,
-      phone: form.phone,
-      email: form.email.toLowerCase().trim(),
-      password: form.password,
-      note: form.note,
-      classKey: form.classKey as ClassKey,
-      schedule: combinedSchedule,
-      payment: form.payment,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    };
+    setStage({ kind: "processing", method: paymentMethod });
 
-    setStage({ kind: "processing", method: form.payment });
+    try {
+      const { createApplication, verifyPayment } = await import(
+        "@/lib/applications.functions"
+      );
 
-    if (form.payment === "card") {
-      const result = await mockPortonePay(baseApp);
-      const paidApp: Application = {
-        ...baseApp,
-        status: "paid",
-        paymentRef: result.impUid,
+      const created = await createApplication({
+        data: {
+          name: form.name,
+          phone: form.phone,
+          email: form.email,
+          password: form.password,
+          note: form.note,
+          classKey,
+          schedule: combinedSchedule,
+          paymentMethod,
+        },
+      });
+
+      const appPreview: Application = {
+        id: created.applicationId,
+        name: form.name,
+        email: form.email.toLowerCase().trim(),
+        classKey,
+        schedule: combinedSchedule,
+        payment: paymentMethod,
+        amount: created.amount,
       };
-      const list = loadApps();
-      list.push(paidApp);
-      saveApps(list);
-      setStage({ kind: "card-success", app: paidApp });
+
+      if (paymentMethod === "bank") {
+        setStage({ kind: "bank-pending", app: appPreview });
+        resetForm();
+        return;
+      }
+
+      // Card / KakaoPay via PortOne
+      if (!created.paymentId) {
+        throw new Error("결제 ID 발급에 실패했습니다.");
+      }
+      const payRes = await openPortonePayment({
+        method: paymentMethod,
+        paymentId: created.paymentId,
+        orderName: created.orderName,
+        totalAmount: created.amount,
+        customer: {
+          fullName: form.name,
+          email: form.email.trim(),
+          phoneNumber: form.phone,
+        },
+      });
+      if (!payRes.ok) {
+        toast.error(payRes.message);
+        setStage({ kind: "idle" });
+        return;
+      }
+      const verifyRes = await verifyPayment({
+        data: {
+          applicationId: created.applicationId,
+          paymentId: created.paymentId,
+        },
+      });
+      if (!verifyRes.ok) {
+        toast.error(verifyRes.message ?? "결제 검증에 실패했습니다.");
+        setStage({ kind: "idle" });
+        return;
+      }
+      setStage({
+        kind: "card-success",
+        app: { ...appPreview, paymentRef: created.paymentId },
+      });
       resetForm();
-    } else {
-      // Bank transfer: save as pending, show account info
-      const list = loadApps();
-      list.push(baseApp);
-      saveApps(list);
-      // brief simulated loading for UX consistency
-      await new Promise((r) => setTimeout(r, 500));
-      setStage({ kind: "bank-pending", app: baseApp });
-      resetForm();
+    } catch (err) {
+      console.error(err);
+      toast.error(
+        err instanceof Error ? err.message : "신청 처리 중 오류가 발생했습니다.",
+      );
+      setStage({ kind: "idle" });
     }
   }
+
+
 
   return (
     <section id="apply" className="relative border-t border-border/50 py-24 sm:py-32">
@@ -864,12 +924,16 @@ function ApplyForm() {
           <Field label="결제 방법 *">
             <RadioGroup
               value={form.payment}
-              onValueChange={(v) => set("payment", v as "card" | "bank")}
-              className="grid grid-cols-2 gap-3"
+              onValueChange={(v) => set("payment", v as PaymentMethod)}
+              className="grid grid-cols-3 gap-3"
             >
               <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background/40 p-3 text-sm has-[[data-state=checked]]:border-neon has-[[data-state=checked]]:bg-neon/10">
                 <RadioGroupItem value="card" />
                 카드결제
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background/40 p-3 text-sm has-[[data-state=checked]]:border-neon has-[[data-state=checked]]:bg-neon/10">
+                <RadioGroupItem value="kakaopay" />
+                카카오페이
               </label>
               <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background/40 p-3 text-sm has-[[data-state=checked]]:border-neon has-[[data-state=checked]]:bg-neon/10">
                 <RadioGroupItem value="bank" />
@@ -877,6 +941,7 @@ function ApplyForm() {
               </label>
             </RadioGroup>
           </Field>
+
 
           <Field label="비고">
             <Textarea
@@ -903,11 +968,12 @@ function ApplyForm() {
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" /> 처리 중...
               </>
-            ) : form.payment === "card" ? (
-              "결제하기"
-            ) : (
+            ) : form.payment === "bank" ? (
               "신청하기"
+            ) : (
+              "결제하기"
             )}
+
           </Button>
         </form>
       </div>
@@ -951,8 +1017,9 @@ function PaymentProcessingDialog({
   method,
 }: {
   open: boolean;
-  method: "card" | "bank";
+  method: PaymentMethod;
 }) {
+
   return (
     <Dialog open={open}>
       <DialogContent
@@ -964,15 +1031,16 @@ function PaymentProcessingDialog({
           <Loader2 className="h-10 w-10 animate-spin text-neon" />
           <div>
             <div className="font-semibold">
-              {method === "card"
-                ? "결제창을 여는 중입니다"
-                : "신청을 접수하는 중입니다"}
+              {method === "bank"
+                ? "신청을 접수하는 중입니다"
+                : "결제창을 여는 중입니다"}
             </div>
             <div className="mt-1 text-xs text-muted-foreground">
-              {method === "card"
-                ? "포트원(PortOne) 결제창 · 잠시만 기다려주세요"
-                : "잠시만 기다려주세요"}
+              {method === "bank"
+                ? "잠시만 기다려주세요"
+                : "포트원(PortOne) 결제창 · 잠시만 기다려주세요"}
             </div>
+
           </div>
         </div>
       </DialogContent>
@@ -1007,15 +1075,17 @@ function CardSuccessDialog({
             <Row label="신청자" value={`${app.name} (${app.email})`} />
             <Row label="클래스" value={c.title} />
             <Row label="일정" value={app.schedule} />
-            <Row label="결제 금액" value={`${priceOf(app.classKey).toLocaleString()}원`} />
+            <Row label="결제 금액" value={`${app.amount.toLocaleString()}원`} />
             <Row
               label="결제 방법"
               value={
                 <span className="inline-flex items-center gap-1">
-                  <CreditCard className="h-3.5 w-3.5" /> 카드결제
+                  <CreditCard className="h-3.5 w-3.5" />{" "}
+                  {app.payment === "kakaopay" ? "카카오페이" : "카드결제"}
                 </span>
               }
             />
+
             {app.paymentRef && (
               <Row label="거래번호" value={<span className="font-mono text-xs">{app.paymentRef}</span>} />
             )}
@@ -1089,10 +1159,11 @@ function BankInfoDialog({
                 label="입금 금액"
                 value={
                   <span className="font-semibold text-neon">
-                    {priceOf(app.classKey).toLocaleString()}원
+                    {app.amount.toLocaleString()}원
                   </span>
                 }
               />
+
             </div>
           )}
 
@@ -1134,7 +1205,9 @@ function CheckDialog({
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [results, setResults] = useState<Application[] | null>(null);
+  const [results, setResults] = useState<AppRecord[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [refundingId, setRefundingId] = useState<string | null>(null);
 
   function reset() {
     setEmail("");
@@ -1145,24 +1218,55 @@ function CheckDialog({
     if (!open) reset();
   }, [open]);
 
-  function search(e: React.FormEvent) {
+  async function search(e: React.FormEvent) {
     e.preventDefault();
-    const list = loadApps().filter(
-      (a) => a.email === email.toLowerCase().trim() && a.password === password,
-    );
-    setResults(list);
-    if (list.length === 0) toast.error("일치하는 신청 내역이 없습니다.");
+    setLoading(true);
+    try {
+      const { lookupApplications } = await import(
+        "@/lib/applications.functions"
+      );
+      const list = (await lookupApplications({
+        data: { email, password },
+      })) as AppRecord[];
+      setResults(list);
+      if (list.length === 0) toast.error("일치하는 신청 내역이 없습니다.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "조회 실패");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function refund(id: string) {
-    const list = loadApps().map((a) =>
-      a.id === id ? { ...a, status: "refunded" as const } : a,
-    );
-    saveApps(list);
-    setResults((r) =>
-      r?.map((a) => (a.id === id ? { ...a, status: "refunded" } : a)) ?? null,
-    );
-    toast.success("환불 신청이 접수되었습니다.");
+  async function refund(id: string) {
+    setRefundingId(id);
+    try {
+      const { requestRefund } = await import("@/lib/applications.functions");
+      const res = await requestRefund({
+        data: { applicationId: id, email, password },
+      });
+      if (res.alreadyRequested) {
+        toast.info("이미 환불이 요청된 신청입니다.");
+      } else if (res.refunded) {
+        toast.success("환불이 완료되었습니다.");
+      } else {
+        toast.success("환불 요청이 접수되었습니다. 관리자 확인 후 처리됩니다.");
+      }
+      setResults(
+        (r) =>
+          r?.map((a) =>
+            a.id === id
+              ? {
+                  ...a,
+                  status: res.refunded ? "refunded" : "refund_requested",
+                }
+              : a,
+          ) ?? null,
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "환불 요청 실패");
+    } finally {
+      setRefundingId(null);
+    }
   }
 
   return (
@@ -1195,9 +1299,16 @@ function CheckDialog({
             </Field>
             <Button
               type="submit"
+              disabled={loading}
               className="w-full bg-neon text-neon-foreground hover:bg-neon/90"
             >
-              조회
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 조회 중...
+                </>
+              ) : (
+                "조회"
+              )}
             </Button>
           </form>
         )}
@@ -1205,7 +1316,15 @@ function CheckDialog({
         {results && (
           <div className="space-y-3">
             {results.map((a) => {
-              const c = CLASS_OPTIONS.find((x) => x.key === a.classKey);
+              const c = CLASS_OPTIONS.find((x) => x.key === a.class_key);
+              const paymentLabel =
+                a.payment_method === "card"
+                  ? "카드결제"
+                  : a.payment_method === "kakaopay"
+                    ? "카카오페이"
+                    : "무통장입금";
+              const canRefund =
+                a.status !== "refunded" && a.status !== "refund_requested";
               return (
                 <div
                   key={a.id}
@@ -1218,19 +1337,27 @@ function CheckDialog({
                         {a.schedule}
                       </div>
                       <div className="mt-2 text-xs text-muted-foreground">
-                        {a.payment === "card" ? "카드결제" : "무통장입금"}
+                        {paymentLabel} · {a.amount.toLocaleString()}원
                       </div>
                     </div>
                     <StatusPill status={a.status} />
                   </div>
-                  {a.status !== "refunded" && (
+                  {canRefund && (
                     <Button
                       variant="outline"
                       size="sm"
+                      disabled={refundingId === a.id}
                       onClick={() => refund(a.id)}
                       className="mt-3 w-full border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >
-                      환불 신청
+                      {refundingId === a.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />{" "}
+                          처리 중...
+                        </>
+                      ) : (
+                        "환불 신청"
+                      )}
                     </Button>
                   )}
                 </div>
@@ -1251,16 +1378,26 @@ function CheckDialog({
   );
 }
 
-function StatusPill({ status }: { status: Application["status"] }) {
-  const map = {
+function StatusPill({ status }: { status: ApplicationStatus }) {
+  const map: Record<ApplicationStatus, { label: string; cls: string }> = {
     pending: { label: "결제 대기", cls: "bg-yellow-500/15 text-yellow-400" },
+    bank_pending: {
+      label: "입금 대기",
+      cls: "bg-yellow-500/15 text-yellow-400",
+    },
     paid: { label: "결제 완료", cls: "bg-neon/15 text-neon" },
+    failed: { label: "결제 실패", cls: "bg-destructive/15 text-destructive" },
+    refund_requested: {
+      label: "환불 요청됨",
+      cls: "bg-orange-500/15 text-orange-400",
+    },
     refunded: { label: "환불 완료", cls: "bg-muted text-muted-foreground" },
-  } as const;
+  };
   const m = map[status];
   return (
     <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs ${m.cls}`}>
       {m.label}
+
     </span>
   );
 }
