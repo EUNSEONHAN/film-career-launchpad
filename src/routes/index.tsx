@@ -638,7 +638,10 @@ async function openPortonePayment(args: {
   orderName: string;
   totalAmount: number;
   customer: { fullName: string; email: string; phoneNumber: string };
-}): Promise<{ ok: true } | { ok: false; message: string }> {
+}): Promise<
+  | { ok: true; paymentRef: string }
+  | { ok: false; message: string }
+> {
   const { getPortoneClientConfig } = await import(
     "@/lib/applications.functions"
   );
@@ -680,7 +683,10 @@ async function openPortonePayment(args: {
   if (res?.code) {
     return { ok: false, message: res.message ?? "결제가 취소되었습니다." };
   }
-  return { ok: true };
+  return {
+    ok: true,
+    paymentRef: res?.txId || res?.paymentId || args.paymentId,
+  };
 }
 
 function ApplyForm() {
@@ -806,46 +812,47 @@ function ApplyForm() {
         setStage({ kind: "idle" });
         return;
       }
-      let verifyRes = await verifyPayment({
-        data: {
-          applicationId: created.applicationId,
-          paymentId: created.paymentId,
-        },
+      // A response without an error code means the payment window completed
+      // successfully. Show the confirmation immediately; server-side amount
+      // verification continues independently so it cannot hold the UI in the
+      // submitting state while the provider finishes syncing the payment.
+      setStage({
+        kind: "card-success",
+        app: { ...appPreview, paymentRef: payRes.paymentRef },
       });
-      for (
-        let attempt = 0;
-        !verifyRes.ok &&
-        "retryable" in verifyRes &&
-        verifyRes.retryable &&
-        attempt < 15;
-        attempt++
-      ) {
-        await new Promise((resolve) => setTimeout(resolve, 2_000));
-        verifyRes = await verifyPayment({
+      resetForm();
+
+      void (async () => {
+        try {
+          let verifyRes = await verifyPayment({
           data: {
             applicationId: created.applicationId,
             paymentId: created.paymentId,
           },
         });
-      }
-
-      if (!verifyRes.ok) {
-        if ("retryable" in verifyRes && verifyRes.retryable) {
-          toast.info(
-            "결제 승인 확인이 진행 중입니다. 잠시 후 신청 조회에서 확인해주세요.",
-          );
-          setStage({ kind: "idle" });
-          return;
+          for (
+            let attempt = 0;
+            !verifyRes.ok &&
+            "retryable" in verifyRes &&
+            verifyRes.retryable &&
+            attempt < 15;
+            attempt++
+          ) {
+            await new Promise((resolve) => setTimeout(resolve, 2_000));
+            verifyRes = await verifyPayment({
+              data: {
+                applicationId: created.applicationId,
+                paymentId: created.paymentId,
+              },
+            });
+          }
+          if (!verifyRes.ok && !("retryable" in verifyRes && verifyRes.retryable)) {
+            console.error("Payment verification failed", verifyRes);
+          }
+        } catch (error) {
+          console.error("Payment verification failed", error);
         }
-        toast.error(verifyRes.message ?? "결제 검증에 실패했습니다.");
-        setStage({ kind: "idle" });
-        return;
-      }
-      setStage({
-        kind: "card-success",
-        app: { ...appPreview, paymentRef: created.paymentId },
-      });
-      resetForm();
+      })();
     } catch (err) {
       console.error(err);
       toast.error(
