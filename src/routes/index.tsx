@@ -1068,7 +1068,7 @@ function PaymentProcessingDialog({
 }) {
 
   return (
-    <Dialog open={open}>
+    <Dialog open={open} modal={false}>
       <DialogContent
         className="max-w-sm bg-surface"
         onEscapeKeyDown={(e) => e.preventDefault()}
