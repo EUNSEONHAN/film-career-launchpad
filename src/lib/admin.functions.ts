@@ -2,6 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 async function isAdmin(context: { supabase: any; userId: string }): Promise<boolean> {
+  // 💡 [무적 프리패스 코드 추가] 
+  // 수파베이스 Authentication -> Users에서 복사하셨던 본인의 36자리 UUID 주소를 여기에 넣어줍니다.
+  if (context.userId === "136fb019-9e4b-40bf-b68b-2ed88211d1dc") {
+    return true;
+  }
+
+  // 기존 검증 로직 (혹시 모를 다른 관리자를 위해 유지)
   const { data, error } = await context.supabase
     .from("user_roles")
     .select("role")
@@ -10,6 +17,7 @@ async function isAdmin(context: { supabase: any; userId: string }): Promise<bool
     .maybeSingle();
   if (error) throw new Error("권한 확인 실패");
   return !!data;
+}
 }
 
 async function assertAdmin(context: { supabase: any; userId: string }) {
