@@ -14,7 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      applications: {
+        Row: {
+          amount: number
+          class_key: string
+          created_at: string
+          email: string
+          id: string
+          name: string
+          note: string
+          password_hash: string
+          payment_method: string
+          payment_ref: string | null
+          phone: string
+          portone_payment_id: string | null
+          refund_requested_at: string | null
+          refunded_at: string | null
+          schedule: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          class_key: string
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          note?: string
+          password_hash: string
+          payment_method: string
+          payment_ref?: string | null
+          phone: string
+          portone_payment_id?: string | null
+          refund_requested_at?: string | null
+          refunded_at?: string | null
+          schedule?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          class_key?: string
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          note?: string
+          password_hash?: string
+          payment_method?: string
+          payment_ref?: string | null
+          phone?: string
+          portone_payment_id?: string | null
+          refund_requested_at?: string | null
+          refunded_at?: string | null
+          schedule?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
