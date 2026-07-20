@@ -37,7 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import defaultHeroVideo from "@/assets/cover_1080p.mp4.asset.json";
-import instructorImg from "@/assets/instructor.jpg";
+import instructorImg from "@/assets/최지원.jpeg.asset.json";
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
