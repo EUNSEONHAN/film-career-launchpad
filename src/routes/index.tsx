@@ -82,7 +82,8 @@ const CLASS_OPTIONS: {
 
 const NAV = [
   { id: "home", label: "홈" },
-  { id: "classes", label: "클래스 소개" },
+  { id: "story", label: "클래스 소개" },
+  { id: "classes", label: "가격안내" },
   { id: "apply", label: "신청하기" },
   { id: "check", label: "신청 조회" },
 ];
@@ -234,42 +235,7 @@ function Nav({
 }
 
 /* -------------------- HERO -------------------- */
-const HERO_VIDEO_KEY = "862-academy-hero-video";
-
 function Hero() {
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    const saved = localStorage.getItem(HERO_VIDEO_KEY);
-    if (saved) setVideoUrl(saved);
-  }, []);
-
-  const onUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("video/")) {
-      toast.error("영상 파일만 업로드 가능합니다.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      try {
-        localStorage.setItem(HERO_VIDEO_KEY, dataUrl);
-      } catch {
-        toast.message("파일이 너무 커서 저장되지 않지만 세션에서 재생됩니다.");
-      }
-      setVideoUrl(dataUrl);
-      toast.success("영상이 업로드되었습니다.");
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const clearVideo = () => {
-    localStorage.removeItem(HERO_VIDEO_KEY);
-    setVideoUrl(null);
-  };
-
   return (
     <section
       id="home"
@@ -277,15 +243,13 @@ function Hero() {
     >
       <div className="absolute inset-0">
         <video
-          key={videoUrl ?? defaultHeroVideo.url}
-          src={videoUrl ?? defaultHeroVideo.url}
+          src={defaultHeroVideo.url}
           className="h-full w-full object-cover opacity-70"
           autoPlay
           loop
           muted
           playsInline
         />
-
         <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/60 to-background" />
         <div className="absolute inset-0 bg-grid opacity-40" />
       </div>
@@ -329,49 +293,16 @@ function Hero() {
             <Play className="mr-2 h-4 w-4" /> 클래스 살펴보기
           </Button>
         </div>
-        <div className="mt-10 flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground">
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background/50 px-4 py-2 backdrop-blur transition hover:border-neon/50 hover:text-foreground">
-            <input
-              type="file"
-              accept="video/*"
-              className="hidden"
-              onChange={onUpload}
-            />
-            <Play className="h-3.5 w-3.5" />
-            {videoUrl ? "배경 영상 교체" : "배경 영상 업로드"}
-          </label>
-          {videoUrl && (
-            <button
-              onClick={clearVideo}
-              className="rounded-full border border-border bg-background/50 px-4 py-2 backdrop-blur transition hover:text-foreground"
-            >
-              영상 제거
-            </button>
-          )}
-        </div>
-        <div className="mx-auto mt-14 grid w-full max-w-md grid-cols-3 gap-4 border-t border-border/50 pt-8">
-          <Stat n="3" label="Class" />
-          <Stat n="1:1" label="컨설팅" />
-          <Stat n="100%" label="실전 기반" />
-        </div>
       </div>
     </section>
-  );
-}
-
-function Stat({ n, label }: { n: string; label: string }) {
-  return (
-    <div>
-      <div className="font-display text-2xl font-bold text-neon sm:text-3xl">{n}</div>
-      <div className="mt-1 text-xs text-muted-foreground sm:text-sm">{label}</div>
-    </div>
   );
 }
 
 /* -------------------- STORY -------------------- */
 function Story() {
   return (
-    <section className="relative py-24 sm:py-32">
+    <section id="story" className="relative py-24 sm:py-32">
+
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <div className="mb-8 text-sm tracking-widest text-neon uppercase">
           From the founder
