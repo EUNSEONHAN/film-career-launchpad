@@ -122,6 +122,49 @@ export const confirmBrowserPayment = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+// Same as above but keyed by paymentId only — used by the mobile redirect
+// return flow where the client no longer holds the applicationId.
+export const confirmBrowserPaymentByPaymentId = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        paymentId: z.string().min(1).max(200),
+        paymentRef: z.string().max(200).optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+    const { data: app, error } = await supabaseAdmin
+      .from("applications")
+      .select("id, name, class_key, schedule, amount, payment_method, status")
+      .eq("portone_payment_id", data.paymentId)
+      .single();
+    if (error || !app) throw new Error("Application not found");
+    if (app.status !== "paid" && app.status !== "refunded") {
+      await supabaseAdmin
+        .from("applications")
+        .update({
+          status: "paid",
+          payment_ref: data.paymentRef ?? data.paymentId,
+        })
+        .eq("id", app.id);
+    }
+    return {
+      ok: true as const,
+      application: {
+        id: app.id,
+        name: app.name,
+        classKey: app.class_key,
+        schedule: app.schedule,
+        amount: app.amount,
+        paymentMethod: app.payment_method,
+      },
+    };
+  });
+
 // ---------- Verify PortOne payment after browser SDK returns ----------
 
 const verifySchema = z.object({
