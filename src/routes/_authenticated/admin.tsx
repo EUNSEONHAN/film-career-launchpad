@@ -196,12 +196,38 @@ function AdminPage() {
             placeholder="이름·이메일·전화번호 검색"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full sm:w-80 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+            className="w-full sm:w-72 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
           />
+          <select
+            value={classFilter}
+            onChange={(e) => setClassFilter(e.target.value)}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="all">전체 클래스</option>
+            <option value="class1">1강 · 진로 탐색 (PKG 포함)</option>
+            <option value="class2">2강 · 취업 서류 (PKG 포함)</option>
+            <option value="class3">3강 · 1:1 컨설팅</option>
+            <option value="package">스타터 PKG만</option>
+          </select>
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+          {(dateFilter || classFilter !== "all" || query) && (
+            <button
+              onClick={() => { setDateFilter(""); setClassFilter("all"); setQuery(""); }}
+              className="rounded-md border border-border px-3 py-2 text-xs hover:bg-accent"
+            >
+              필터 초기화
+            </button>
+          )}
           <div className="text-xs text-muted-foreground">
-            총 {rows.length}건 / 전체 {(appsQ.data ?? []).length}건
+            {rows.length}건 표시 / 전체 {(appsQ.data ?? []).length}건
           </div>
         </div>
+
 
         {appsQ.isLoading && <p className="text-muted-foreground">불러오는 중...</p>}
         {appsQ.isError && (
