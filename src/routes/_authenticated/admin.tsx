@@ -251,7 +251,7 @@ function AdminPage() {
             </thead>
             <tbody>
               {rows.map((r: any) => (
-                <tr key={r.id} className="border-t border-border align-top">
+                <tr key={`${r.id}-${r._viewClass ?? r.class_key}`} className="border-t border-border align-top">
                   <td className="px-3 py-2 text-xs text-muted-foreground">
                     {new Date(r.created_at).toLocaleString("ko-KR")}
                   </td>
@@ -259,21 +259,22 @@ function AdminPage() {
                   <td className="px-3 py-2">{r.phone}</td>
                   <td className="px-3 py-2">{r.email}</td>
                   <td className="px-3 py-2">
-                    <div>{CLASS_LABELS[r.class_key] ?? r.class_key}</div>
-                    {r.schedule && (
+                    <div>{r._viewLabel ?? (CLASS_LABELS[r.class_key] ?? r.class_key)}</div>
+                    {(r._viewSchedule ?? r.schedule) && (
                       <div className="text-xs text-muted-foreground whitespace-pre-line">
-                        {r.schedule}
+                        {r._viewSchedule ?? r.schedule}
                       </div>
                     )}
                   </td>
                   <td className="px-3 py-2 text-xs">
-                    <div>{r.payment_method === "card" ? "카드/카카오" : "무통장"}</div>
+                    <div>{PAYMENT_LABELS[r.payment_method] ?? r.payment_method}</div>
                     {r.portone_payment_id && (
                       <div className="text-muted-foreground break-all">
                         {r.portone_payment_id}
                       </div>
                     )}
                   </td>
+
                   <td className="px-3 py-2">{r.amount?.toLocaleString()}원</td>
                   <td className="px-3 py-2">
                     <StatusBadge status={r.status} />
