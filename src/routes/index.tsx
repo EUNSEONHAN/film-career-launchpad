@@ -628,14 +628,20 @@ function ApplyForm() {
     note: "",
     classKey: "" as ClassKey | "",
     schedule: "",
+    schedule1: "",
+    schedule2: "",
     payment: "card" as "card" | "bank",
   });
   const [stage, setStage] = useState<PayStage>({ kind: "idle" });
 
+  const isPackage = form.classKey === "package";
+  const pkgSchedules1 = CLASS_OPTIONS.find((x) => x.key === "class1")?.schedules ?? [];
+  const pkgSchedules2 = CLASS_OPTIONS.find((x) => x.key === "class2")?.schedules ?? [];
   const schedules = useMemo(() => {
+    if (isPackage) return [];
     const c = CLASS_OPTIONS.find((x) => x.key === form.classKey);
     return c?.schedules ?? [];
-  }, [form.classKey]);
+  }, [form.classKey, isPackage]);
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -650,6 +656,8 @@ function ApplyForm() {
       note: "",
       classKey: "",
       schedule: "",
+      schedule1: "",
+      schedule2: "",
       payment: "card",
     });
   }
@@ -660,10 +668,20 @@ function ApplyForm() {
       toast.error("필수 항목을 모두 입력해주세요.");
       return;
     }
-    if (schedules.length > 0 && !form.schedule) {
+    if (isPackage) {
+      if (!form.schedule1 || !form.schedule2) {
+        toast.error("1강과 2강 일정을 모두 선택해주세요.");
+        return;
+      }
+    } else if (schedules.length > 0 && !form.schedule) {
       toast.error("일정을 선택해주세요.");
       return;
     }
+
+    const combinedSchedule = isPackage
+      ? `1강: ${form.schedule1} + 2강: ${form.schedule2}`
+      : form.schedule || "일정 개별 조율";
+
 
     const baseApp: Application = {
       id: crypto.randomUUID(),
@@ -673,7 +691,7 @@ function ApplyForm() {
       password: form.password,
       note: form.note,
       classKey: form.classKey as ClassKey,
-      schedule: form.schedule || "일정 개별 조율",
+      schedule: combinedSchedule,
       payment: form.payment,
       status: "pending",
       createdAt: new Date().toISOString(),
@@ -766,6 +784,8 @@ function ApplyForm() {
               onValueChange={(v) => {
                 set("classKey", v as ClassKey);
                 set("schedule", "");
+                set("schedule1", "");
+                set("schedule2", "");
               }}
             >
               <SelectTrigger>
@@ -781,7 +801,46 @@ function ApplyForm() {
             </Select>
           </Field>
 
-          {schedules.length > 0 && (
+          {isPackage && (
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="1강 일정 *">
+                <Select
+                  value={form.schedule1}
+                  onValueChange={(v) => set("schedule1", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="1강 일정을 선택하세요" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pkgSchedules1.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="2강 일정 *">
+                <Select
+                  value={form.schedule2}
+                  onValueChange={(v) => set("schedule2", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="2강 일정을 선택하세요" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pkgSchedules2.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+          )}
+
+          {!isPackage && schedules.length > 0 && (
             <Field label="일정 *">
               <Select
                 value={form.schedule}
@@ -800,6 +859,7 @@ function ApplyForm() {
               </Select>
             </Field>
           )}
+
 
           <Field label="결제 방법 *">
             <RadioGroup
