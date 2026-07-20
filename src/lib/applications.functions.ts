@@ -249,19 +249,64 @@ export const lookupApplications = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
-    const { hashPassword } = await import("@/lib/portone.server");
+    const { hashPassword, getPortonePayment } = await import(
+      "@/lib/portone.server"
+    );
 
     const passwordHash = await hashPassword(data.password);
     const { data: rows, error } = await supabaseAdmin
       .from("applications")
       .select(
-        "id, name, phone, email, class_key, schedule, payment_method, amount, status, created_at, refund_requested_at, refunded_at",
+        "id, name, phone, email, class_key, schedule, payment_method, amount, status, portone_payment_id, created_at, refund_requested_at, refunded_at",
       )
       .eq("email", data.email.toLowerCase().trim())
       .eq("password_hash", passwordHash)
       .order("created_at", { ascending: false });
 
     if (error) throw new Error(error.message);
+
+    // Reconcile PortOne-backed rows whose status is still pending/failed —
+    // the background verify after payment may not have completed. Query
+    // PortOne now and update the row when the payment actually succeeded.
+    const reconcilable = (rows ?? []).filter(
+      (r) =>
+        (r.payment_method === "card" || r.payment_method === "kakaopay") &&
+        r.portone_payment_id &&
+        (r.status === "pending" || r.status === "failed"),
+    );
+    await Promise.all(
+      reconcilable.map(async (r) => {
+        try {
+          const p = await getPortonePayment(r.portone_payment_id!);
+          const paid = p.amount?.total ?? 0;
+          if (p.status === "PAID" && paid === r.amount) {
+            await supabaseAdmin
+              .from("applications")
+              .update({
+                status: "paid",
+                payment_ref: p.transactionId ?? p.id,
+              })
+              .eq("id", r.id);
+            r.status = "paid";
+          } else if (
+            p.status === "CANCELLED" ||
+            p.status === "PARTIAL_CANCELLED"
+          ) {
+            await supabaseAdmin
+              .from("applications")
+              .update({
+                status: "refunded",
+                refunded_at: new Date().toISOString(),
+              })
+              .eq("id", r.id);
+            r.status = "refunded";
+          }
+        } catch {
+          // ignore — leave status as-is
+        }
+      }),
+    );
+
     return rows ?? [];
   });
 
