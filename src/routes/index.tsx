@@ -1070,15 +1070,17 @@ function CardSuccessDialog({
             <Row label="신청자" value={`${app.name} (${app.email})`} />
             <Row label="클래스" value={c.title} />
             <Row label="일정" value={app.schedule} />
-            <Row label="결제 금액" value={`${priceOf(app.classKey).toLocaleString()}원`} />
+            <Row label="결제 금액" value={`${app.amount.toLocaleString()}원`} />
             <Row
               label="결제 방법"
               value={
                 <span className="inline-flex items-center gap-1">
-                  <CreditCard className="h-3.5 w-3.5" /> 카드결제
+                  <CreditCard className="h-3.5 w-3.5" />{" "}
+                  {app.payment === "kakaopay" ? "카카오페이" : "카드결제"}
                 </span>
               }
             />
+
             {app.paymentRef && (
               <Row label="거래번호" value={<span className="font-mono text-xs">{app.paymentRef}</span>} />
             )}
@@ -1152,10 +1154,11 @@ function BankInfoDialog({
                 label="입금 금액"
                 value={
                   <span className="font-semibold text-neon">
-                    {priceOf(app.classKey).toLocaleString()}원
+                    {app.amount.toLocaleString()}원
                   </span>
                 }
               />
+
             </div>
           )}
 
