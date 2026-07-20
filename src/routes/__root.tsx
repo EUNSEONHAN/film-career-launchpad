@@ -86,7 +86,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "862 아카데미 | 영화·영상 전공자를 위한 커리어 클래스" },
       {
         property: "og:description",
-        content: "영화·영상 전공자의 졸업 이후를 위한 진로탐색, 취업서류, 1:1 커리어 컨설팅 클래스. 현직 대표이자 영화산업 면접관의 실전 강의.",
+        content: "영화·영상 전공자의 졸업 이후를 위한 진로탐색, 취업서류, 1:1 커리어 컨설팅 클래스. 현직 대표이자 영화산업 면접관의 실전 강의",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
