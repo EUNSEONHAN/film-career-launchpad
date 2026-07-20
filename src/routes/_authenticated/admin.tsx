@@ -88,9 +88,18 @@ function AdminPage() {
   const CLASS_SHORT: Record<string, string> = { class1: "1강", class2: "2강", class3: "3강" };
   const extractDate = (s: string): string => s?.match(/(\d+월\s*\d+일)/)?.[1] ?? "";
 
-  // Build filter options from actual data: e.g. "8월 5일 1강", "8월 6일 1강", "3강".
+  // Predefined + data-driven filter options. Predefined ensures options like
+  // "8월 6일 1강" appear even when no one has signed up yet.
+  const PREDEFINED_OPTIONS: { value: string; label: string }[] = [
+    { value: "class1|8월 5일", label: "8월 5일 1강" },
+    { value: "class1|8월 6일", label: "8월 6일 1강" },
+    { value: "class2|8월 5일", label: "8월 5일 2강" },
+    { value: "class2|8월 6일", label: "8월 6일 2강" },
+    { value: "class3|", label: "3강 (개별 조율)" },
+  ];
   const scheduleOptions = useMemo(() => {
     const seen = new Map<string, string>();
+    for (const o of PREDEFINED_OPTIONS) seen.set(o.value, o.label);
     for (const r of expandedAll) {
       const cls = CLASS_SHORT[r._viewClass] ?? r._viewClass;
       const date = extractDate(r._viewSchedule);
