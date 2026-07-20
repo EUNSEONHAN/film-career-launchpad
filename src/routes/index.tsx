@@ -704,9 +704,9 @@ type PayStage =
   | { kind: "bank-pending"; app: Application };
 
 const BANK_INFO = {
-  bank: "신한은행",
-  account: "123-456-7890",
-  holder: "주식회사 에프팔육이",
+  bank: "기업은행",
+  account: "932-054248-04-011",
+  holder: "(주)에프팔육이",
 };
 
 function priceOf(key: ClassKey): number {
