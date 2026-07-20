@@ -844,8 +844,12 @@ function ApplyForm() {
       return;
     }
 
-    if (paymentMethod_receipt_check(form)) {
-      toast.error("현금영수증 번호를 입력해주세요.");
+    if (form.payment === "bank" && form.receiptEnabled && !form.receiptNumber.trim()) {
+      toast.error(
+        form.receiptType === "personal"
+          ? "현금영수증 발급용 휴대폰 번호를 입력해주세요."
+          : "현금영수증 발급용 사업자번호를 입력해주세요.",
+      );
       return;
     }
 
