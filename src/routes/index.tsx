@@ -494,7 +494,7 @@ function Instructor() {
         <div className="mt-12 grid gap-10 md:grid-cols-[minmax(0,1fr)_1.4fr] md:items-start">
           <div className="relative overflow-hidden rounded-2xl border border-border">
             <img
-              src={instructorImg}
+              src={instructorImg.url}
               alt="최지원 대표"
               width={1024}
               height={1280}
