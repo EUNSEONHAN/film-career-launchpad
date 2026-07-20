@@ -1,28 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-async function isAdmin(context: { supabase: any; userId: string; user?: any }): Promise<boolean> {
+async function isAdmin(context: { supabase: any; userId: string }): Promise<boolean> {
   try {
-    // 💡 [최종 치트키] 미들웨어(requireSupabaseAuth) 단계에서 토큰을 깨서 넣어준 user 객체가 있다면
-    // 수파베이스 서버를 한 번 더 거치지 않고 이메일 텍스트를 즉시 검증합니다.
-    if (context.user?.email?.toLowerCase().trim() === "f862@film862.com") {
-      return true;
-    }
-
-    // 만약 미들웨어 구조에 따라 user가 안전하게 안 넘어왔을 경우를 대비해 세션 데이터를 직접 파싱합니다.
+    // 💡 토큰을 파싱하여 로그인한 유저의 진짜 세션 정보를 가져옵니다.
     const { data: { user }, error } = await context.supabase.auth.getUser();
-    if (!error && user?.email?.toLowerCase().trim() === "f862@film862.com") {
-      return true;
-    }
-
-    return false;
+    if (error || !user) return false;
+    
+    // 이메일 주소가 마스터 계정과 정확히 일치하는지 확인합니다.
+    return user.email?.toLowerCase().trim() === "f862@film862.com";
   } catch (e) {
-    console.error("어드민 권한 검증 중 오류 발생:", e);
+    console.error("서버단 권한 검증 에러:", e);
     return false;
   }
 }
 
-async function assertAdmin(context: { supabase: any; userId: string; user?: any }) {
+async function assertAdmin(context: { supabase: any; userId: string }) {
   const isOk = await isAdmin(context);
   if (!isOk) {
     throw new Error("Forbidden: 관리자 권한이 필요합니다");
@@ -43,7 +36,10 @@ export const listApplications = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await assertAdmin(context);
     
-    const { data, error } = await context.supabase
+    // 💡 서비스 롤 권한을 가진 어드민 클라이언트를 가져와 RLS 보안 정책을 우회하고 데이터를 확실하게 긁어옵니다.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    
+    const { data, error } = await supabaseAdmin
       .from("applications")
       .select(
         "id, name, phone, email, class_key, schedule, payment_method, amount, status, payment_ref, portone_payment_id, note, refund_requested_at, refunded_at, created_at, updated_at",
@@ -60,11 +56,12 @@ export const updateApplicationStatus = createServerFn({ method: "POST" })
   .validator((d: { id: string; status: string; refunded?: boolean }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     
     const patch: { status: string; refunded_at?: string } = { status: data.status };
     if (data.refunded) patch.refunded_at = new Date().toISOString();
     
-    const { error } = await context.supabase
+    const { error } = await supabaseAdmin
       .from("applications")
       .update(patch)
       .eq("id", data.id);
@@ -79,8 +76,9 @@ export const deleteApplication = createServerFn({ method: "POST" })
   .validator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     
-    const { error } = await context.supabase
+    const { error } = await supabaseAdmin
       .from("applications")
       .delete()
       .eq("id", data.id);

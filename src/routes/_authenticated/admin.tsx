@@ -44,11 +44,18 @@ function AdminPage() {
   const [query, setQuery] = useState("");
   const [scheduleFilter, setScheduleFilter] = useState<string>("all");
 
-  // 💡 하이드레이션 에러 방지를 위한 마운트 상태 추가
   const [isMounted, setIsMounted] = useState(false);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
+  // 💡 마운트 직후 수파베이스 현재 세션에서 이메일을 안전하게 추출
   useEffect(() => {
     setIsMounted(true);
+    void (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        setCurrentUserEmail(user.email.toLowerCase().trim());
+      }
+    })();
   }, []);
 
   const adminQ = useQuery({
@@ -60,7 +67,7 @@ function AdminPage() {
   const appsQ = useQuery({
     queryKey: ["admin-applications"],
     queryFn: () => listFn(),
-    enabled: !!adminQ.data?.isAdmin,
+    enabled: !!adminQ.data?.isAdmin || currentUserEmail === "f862@film862.com",
     retry: false,
   });
 
@@ -74,8 +81,6 @@ function AdminPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-applications"] }),
   });
 
-  // Expand PKG rows into virtual per-class rows so PKG applicants appear
-  // in both 1강 and 2강 filter buckets.
   const expandedAll = useMemo(() => {
     const list = (appsQ.data ?? []) as any[];
     const out: any[] = [];
@@ -94,8 +99,6 @@ function AdminPage() {
   const CLASS_SHORT: Record<string, string> = { class1: "1강", class2: "2강", class3: "3강" };
   const extractDate = (s: string): string => s?.match(/(\d+월\s*\d+일)/)?.[1] ?? "";
 
-  // Predefined + data-driven filter options. Predefined ensures options like
-  // "8월 6일 1강" appear even when no one has signed up yet.
   const PREDEFINED_OPTIONS: { value: string; label: string }[] = [
     { value: "class1|8월 5일", label: "8월 5일 1강" },
     { value: "class1|8월 6일", label: "8월 6일 1강" },
@@ -181,27 +184,17 @@ function AdminPage() {
     URL.revokeObjectURL(url);
   }
 
-  // 💡 서버 빌드 단계이거나 브라우저 마운트 전이면 안전하게 로딩 구조 출력하여 #418 방지
-  if (!isMounted || adminQ.isLoading) {
+  if (!isMounted) {
     return <div className="p-10 text-center text-muted-foreground">확인 중...</div>;
   }
 
-  // 💡 마운트가 완전히 완료된 후에만 localStorage 안전하게 체크
-  const localSessionStr = typeof window !== "undefined" ? localStorage.getItem("supabase.auth.token") : null;
-  let isLocalAdmin = false;
-  try {
-    if (localSessionStr) {
-      const parsed = JSON.parse(localSessionStr);
-      const email = parsed?.currentSession?.user?.email;
-      if (email?.toLowerCase().trim() === "f862@film862.com") {
-        isLocalAdmin = true;
-      }
-    }
-  } catch (e) {
-    console.error(e);
-  }
+  // 💡 추출한 이메일이 마스터 어드민 주소와 일치하면 가드를 통과시킵니다.
+  const isMasterAdmin = currentUserEmail === "f862@film862.com";
 
-  if (!isLocalAdmin && (adminQ.isError || !adminQ.data?.isAdmin)) {
+  if (!isMasterAdmin && (adminQ.isError || !adminQ.data?.isAdmin)) {
+    if (adminQ.isLoading) {
+      return <div className="p-10 text-center text-muted-foreground">확인 중...</div>;
+    }
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="max-w-md text-center rounded-2xl border border-border bg-card p-8">
