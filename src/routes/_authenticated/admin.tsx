@@ -43,6 +43,8 @@ function AdminPage() {
   const updateFn = useServerFn(updateApplicationStatus);
   const deleteFn = useServerFn(deleteApplication);
   const [query, setQuery] = useState("");
+  const [classFilter, setClassFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("");
 
   const adminQ = useQuery({
     queryKey: ["is-admin"],
@@ -68,16 +70,40 @@ function AdminPage() {
   });
 
   const rows = useMemo(() => {
-    const list = appsQ.data ?? [];
-    if (!query.trim()) return list;
-    const q = query.toLowerCase();
-    return list.filter(
-      (r: any) =>
+    const list = (appsQ.data ?? []) as any[];
+    const q = query.trim().toLowerCase();
+
+    // Expand: PKG rows appear as two virtual rows (class1, class2) for filtering.
+    const expanded: any[] = [];
+    for (const r of list) {
+      if (r.class_key === "package") {
+        const { class1, class2 } = splitPackageSchedule(r.schedule);
+        expanded.push({ ...r, _viewClass: "class1", _viewSchedule: class1, _viewLabel: "1강 · 진로 탐색 (PKG)" });
+        expanded.push({ ...r, _viewClass: "class2", _viewSchedule: class2, _viewLabel: "2강 · 취업 서류 (PKG)" });
+      } else {
+        expanded.push({ ...r, _viewClass: r.class_key, _viewSchedule: r.schedule, _viewLabel: CLASS_LABELS[r.class_key] ?? r.class_key });
+      }
+    }
+
+    // When filter is "all", collapse PKG back to a single row.
+    const base = classFilter === "all"
+      ? list.map((r) => ({ ...r, _viewClass: r.class_key, _viewSchedule: r.schedule, _viewLabel: CLASS_LABELS[r.class_key] ?? r.class_key }))
+      : expanded.filter((r) => r._viewClass === classFilter);
+
+    return base.filter((r) => {
+      if (q && !(
         r.name?.toLowerCase().includes(q) ||
         r.email?.toLowerCase().includes(q) ||
-        r.phone?.toLowerCase().includes(q),
-    );
-  }, [appsQ.data, query]);
+        r.phone?.toLowerCase().includes(q)
+      )) return false;
+      if (dateFilter) {
+        const d = new Date(r.created_at).toISOString().slice(0, 10);
+        if (d !== dateFilter) return false;
+      }
+      return true;
+    });
+  }, [appsQ.data, query, classFilter, dateFilter]);
+
 
   async function handleLogout() {
     await qc.cancelQueries();
