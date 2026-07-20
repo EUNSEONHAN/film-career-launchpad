@@ -40,14 +40,16 @@ export type PortonePayment = {
 export async function getPortonePayment(
   paymentId: string,
 ): Promise<PortonePayment> {
-  const res = await fetch(
+  const storeId = process.env.PORTONE_STORE_ID;
+  const url = new URL(
     `${PORTONE_API_BASE}/payments/${encodeURIComponent(paymentId)}`,
-    {
-      headers: {
-        Authorization: `PortOne ${getApiSecret()}`,
-      },
-    },
   );
+  if (storeId) url.searchParams.set("storeId", storeId);
+  const res = await fetch(url.toString(), {
+    headers: {
+      Authorization: `PortOne ${getApiSecret()}`,
+    },
+  });
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`PortOne getPayment failed [${res.status}]: ${body}`);
