@@ -206,7 +206,73 @@ function LandingPage() {
       <ApplyForm />
       <Footer />
       <CheckDialog open={checkOpen} onOpenChange={setCheckOpen} />
+      <MobilePaymentSuccessDialog
+        info={mobileSuccess}
+        onClose={() => setMobileSuccess(null)}
+      />
     </div>
+  );
+}
+
+function MobilePaymentSuccessDialog({
+  info,
+  onClose,
+}: {
+  info: null | {
+    name: string;
+    classKey: string;
+    schedule: string;
+    amount: number;
+    paymentMethod: string;
+  };
+  onClose: () => void;
+}) {
+  const classLabel: Record<string, string> = {
+    class1: "영화 영상 진로탐색",
+    class2: "취업 서류 3종 완성",
+    class3: "1:1 커리어 컨설팅",
+    package: "스타터 PKG (1+2)",
+  };
+  return (
+    <Dialog open={!!info} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Check className="h-5 w-5 text-primary" />
+            결제가 완료되었습니다
+          </DialogTitle>
+          <DialogDescription>
+            신청 내역은 상단 "신청 조회"에서 언제든 확인하실 수 있습니다.
+          </DialogDescription>
+        </DialogHeader>
+        {info && (
+          <div className="rounded-lg border border-border/60 bg-muted/30 p-4 text-sm space-y-1">
+            <div>
+              <span className="text-muted-foreground">신청자</span> · {info.name}
+            </div>
+            <div>
+              <span className="text-muted-foreground">클래스</span> ·{" "}
+              {classLabel[info.classKey] ?? info.classKey}
+            </div>
+            {info.schedule && (
+              <div>
+                <span className="text-muted-foreground">일정</span> · {info.schedule}
+              </div>
+            )}
+            <div>
+              <span className="text-muted-foreground">결제금액</span> ·{" "}
+              {info.amount.toLocaleString()}원 (
+              {info.paymentMethod === "kakaopay" ? "카카오페이" : "카드결제"})
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button onClick={onClose} className="w-full">
+            확인
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
