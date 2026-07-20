@@ -226,30 +226,24 @@ function AdminPage() {
             className="w-full sm:w-72 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
           />
           <select
-            value={classFilter}
-            onChange={(e) => setClassFilter(e.target.value)}
+            value={scheduleFilter}
+            onChange={(e) => setScheduleFilter(e.target.value)}
             className="rounded-md border border-input bg-background px-3 py-2 text-sm"
           >
-            <option value="all">전체 클래스</option>
-            <option value="class1">1강 · 진로 탐색 (PKG 포함)</option>
-            <option value="class2">2강 · 취업 서류 (PKG 포함)</option>
-            <option value="class3">3강 · 1:1 컨설팅</option>
-            <option value="package">스타터 PKG만</option>
+            <option value="all">전체 일정</option>
+            {scheduleOptions.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
           </select>
-          <input
-            type="date"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-          />
-          {(dateFilter || classFilter !== "all" || query) && (
+          {(scheduleFilter !== "all" || query) && (
             <button
-              onClick={() => { setDateFilter(""); setClassFilter("all"); setQuery(""); }}
+              onClick={() => { setScheduleFilter("all"); setQuery(""); }}
               className="rounded-md border border-border px-3 py-2 text-xs hover:bg-accent"
             >
               필터 초기화
             </button>
           )}
+
           <div className="text-xs text-muted-foreground">
             {rows.length}건 표시 / 전체 {(appsQ.data ?? []).length}건
           </div>
