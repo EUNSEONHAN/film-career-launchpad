@@ -39,7 +39,7 @@ export const updateApplicationStatus = createServerFn({ method: "POST" })
   .inputValidator((d: { id: string; status: string; refunded?: boolean }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const patch: Record<string, unknown> = { status: data.status };
+    const patch: { status: string; refunded_at?: string } = { status: data.status };
     if (data.refunded) patch.refunded_at = new Date().toISOString();
     const { error } = await context.supabase
       .from("applications")
