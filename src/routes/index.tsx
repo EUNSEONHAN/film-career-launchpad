@@ -150,7 +150,7 @@ function LandingPage() {
         let res = await verifyPaymentByPaymentId({ data: { paymentId } });
         for (
           let attempt = 0;
-          !res.ok && "retryable" in res && res.retryable && attempt < 2;
+          !res.ok && "retryable" in res && res.retryable && attempt < 15;
           attempt++
         ) {
           await new Promise((resolve) => setTimeout(resolve, 2_000));
@@ -817,7 +817,7 @@ function ApplyForm() {
         !verifyRes.ok &&
         "retryable" in verifyRes &&
         verifyRes.retryable &&
-        attempt < 2;
+        attempt < 15;
         attempt++
       ) {
         await new Promise((resolve) => setTimeout(resolve, 2_000));
@@ -828,6 +828,7 @@ function ApplyForm() {
           },
         });
       }
+
       if (!verifyRes.ok) {
         if ("retryable" in verifyRes && verifyRes.retryable) {
           toast.info(
