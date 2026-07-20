@@ -9,7 +9,7 @@ const CLASS_PRICES: Record<string, number> = {
 };
 
 const CLASS_NAMES: Record<string, string> = {
-  class1: "영화 영상 진로탐색",
+  class1: "영화 영상 진로 탐색",
   class2: "취업 서류 3종 완성",
   class3: "1:1 커리어 컨설팅",
   package: "스타터 PKG (1+2)",
