@@ -691,7 +691,7 @@ function ApplyForm() {
       password: form.password,
       note: form.note,
       classKey: form.classKey as ClassKey,
-      schedule: form.schedule || "일정 개별 조율",
+      schedule: combinedSchedule,
       payment: form.payment,
       status: "pending",
       createdAt: new Date().toISOString(),
