@@ -1026,15 +1026,16 @@ function PaymentProcessingDialog({
           <Loader2 className="h-10 w-10 animate-spin text-neon" />
           <div>
             <div className="font-semibold">
-              {method === "card"
-                ? "결제창을 여는 중입니다"
-                : "신청을 접수하는 중입니다"}
+              {method === "bank"
+                ? "신청을 접수하는 중입니다"
+                : "결제창을 여는 중입니다"}
             </div>
             <div className="mt-1 text-xs text-muted-foreground">
-              {method === "card"
-                ? "포트원(PortOne) 결제창 · 잠시만 기다려주세요"
-                : "잠시만 기다려주세요"}
+              {method === "bank"
+                ? "잠시만 기다려주세요"
+                : "포트원(PortOne) 결제창 · 잠시만 기다려주세요"}
             </div>
+
           </div>
         </div>
       </DialogContent>
