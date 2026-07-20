@@ -82,6 +82,46 @@ export const createApplication = createServerFn({ method: "POST" })
     };
   });
 
+// ---------- Mark payment as confirmed based on browser SDK success ----------
+// PortOne's server-side status can lag behind the browser SDK success response
+// (KakaoPay in particular). When the SDK reports success we optimistically
+// mark the row as paid so 신청 조회 reflects reality; the background verify
+// and webhook still reconcile amount/status against PortOne.
+
+const confirmSchema = z.object({
+  applicationId: z.string().uuid(),
+  paymentId: z.string().min(1).max(200),
+  paymentRef: z.string().max(200).optional(),
+});
+
+export const confirmBrowserPayment = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => confirmSchema.parse(data))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+    const { data: app, error } = await supabaseAdmin
+      .from("applications")
+      .select("id, portone_payment_id, status")
+      .eq("id", data.applicationId)
+      .single();
+    if (error || !app) throw new Error("Application not found");
+    if (app.portone_payment_id !== data.paymentId) {
+      throw new Error("Payment ID mismatch");
+    }
+    if (app.status === "paid" || app.status === "refunded") {
+      return { ok: true as const };
+    }
+    await supabaseAdmin
+      .from("applications")
+      .update({
+        status: "paid",
+        payment_ref: data.paymentRef ?? data.paymentId,
+      })
+      .eq("id", app.id);
+    return { ok: true as const };
+  });
+
 // ---------- Verify PortOne payment after browser SDK returns ----------
 
 const verifySchema = z.object({
