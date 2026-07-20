@@ -404,8 +404,8 @@ function Hero() {
           </span>
         </h1>
         <p className="mx-auto mt-8 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-          영화·영상 전공자를 위한 첫번째 클래스. /br졸업 후 진로부터 취업서류, 1:1
-          커리어 컨설팅. /br영화를 배운 다음의 이야기를 함께 나눠보려 합니다.
+          영화·영상 전공자를 위한 첫번째 클래스. <br>졸업 후 진로부터 취업서류, 1:1
+          커리어 컨설팅.</br> 영화를 배운 다음의 이야기를 함께 나눠보려 합니다.
         </p>
         <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <Button
