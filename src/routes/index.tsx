@@ -610,7 +610,6 @@ function Instructor() {
 /* -------------------- APPLY FORM -------------------- */
 type PayStage =
   | { kind: "idle" }
-  | { kind: "processing"; method: PaymentMethod }
   | { kind: "card-success"; app: Application }
   | { kind: "bank-pending"; app: Application };
 
@@ -698,6 +697,7 @@ function ApplyForm() {
     payment: "card" as PaymentMethod,
   });
   const [stage, setStage] = useState<PayStage>({ kind: "idle" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isPackage = form.classKey === "package";
   const pkgSchedules1 = CLASS_OPTIONS.find((x) => x.key === "class1")?.schedules ?? [];
@@ -750,7 +750,7 @@ function ApplyForm() {
     const classKey = form.classKey as ClassKey;
     const paymentMethod = form.payment;
 
-    setStage({ kind: "processing", method: paymentMethod });
+    setIsSubmitting(true);
 
     try {
       const { createApplication, verifyPayment } = await import(
@@ -851,6 +851,8 @@ function ApplyForm() {
         err instanceof Error ? err.message : "신청 처리 중 오류가 발생했습니다.",
       );
       setStage({ kind: "idle" });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -1043,10 +1045,10 @@ function ApplyForm() {
           <Button
             type="submit"
             size="lg"
-            disabled={stage.kind === "processing"}
+            disabled={isSubmitting}
             className="h-14 w-full bg-neon text-base font-semibold text-neon-foreground hover:bg-neon/90"
           >
-            {stage.kind === "processing" ? (
+            {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" /> 처리 중...
               </>
@@ -1060,10 +1062,6 @@ function ApplyForm() {
         </form>
       </div>
 
-      <PaymentProcessingDialog
-        open={stage.kind === "processing"}
-        method={stage.kind === "processing" ? stage.method : "card"}
-      />
       <CardSuccessDialog
         open={stage.kind === "card-success"}
         app={stage.kind === "card-success" ? stage.app : null}
@@ -1094,42 +1092,6 @@ function Field({
 }
 
 /* -------------------- PAYMENT DIALOGS -------------------- */
-function PaymentProcessingDialog({
-  open,
-  method,
-}: {
-  open: boolean;
-  method: PaymentMethod;
-}) {
-
-  return (
-    <Dialog open={open} modal={false}>
-      <DialogContent
-        className="max-w-sm bg-surface"
-        onEscapeKeyDown={(e) => e.preventDefault()}
-        onPointerDownOutside={(e) => e.preventDefault()}
-      >
-        <div className="flex flex-col items-center gap-4 py-6 text-center">
-          <Loader2 className="h-10 w-10 animate-spin text-neon" />
-          <div>
-            <div className="font-semibold">
-              {method === "bank"
-                ? "신청을 접수하는 중입니다"
-                : "결제창을 여는 중입니다"}
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              {method === "bank"
-                ? "잠시만 기다려주세요"
-                : "포트원(PortOne) 결제창 · 잠시만 기다려주세요"}
-            </div>
-
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function CardSuccessDialog({
   open,
   app,
