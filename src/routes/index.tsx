@@ -559,6 +559,39 @@ function Instructor() {
 }
 
 /* -------------------- APPLY FORM -------------------- */
+type PayStage =
+  | { kind: "idle" }
+  | { kind: "processing"; method: "card" | "bank" }
+  | { kind: "card-success"; app: Application }
+  | { kind: "bank-pending"; app: Application };
+
+const BANK_INFO = {
+  bank: "신한은행",
+  account: "123-456-7890",
+  holder: "주식회사 에프팔육이",
+};
+
+function priceOf(key: ClassKey): number {
+  switch (key) {
+    case "class1":
+    case "class2":
+      return 100000;
+    case "class3":
+      return 150000;
+    case "package":
+      return 180000;
+  }
+}
+
+async function mockPortonePay(app: Application): Promise<{ ok: true; impUid: string }> {
+  // Simulate Portone SDK popup + PG authorization
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({ ok: true, impUid: `imp_${Date.now()}_${app.id.slice(0, 6)}` });
+    }, 1600);
+  });
+}
+
 function ApplyForm() {
   const [form, setForm] = useState({
     name: "",
@@ -570,7 +603,7 @@ function ApplyForm() {
     schedule: "",
     payment: "card" as "card" | "bank",
   });
-  const [submitting, setSubmitting] = useState(false);
+  const [stage, setStage] = useState<PayStage>({ kind: "idle" });
 
   const schedules = useMemo(() => {
     const c = CLASS_OPTIONS.find((x) => x.key === form.classKey);
@@ -581,7 +614,20 @@ function ApplyForm() {
     setForm((f) => ({ ...f, [k]: v }));
   }
 
-  function submit(e: React.FormEvent) {
+  function resetForm() {
+    setForm({
+      name: "",
+      phone: "",
+      email: "",
+      password: "",
+      note: "",
+      classKey: "",
+      schedule: "",
+      payment: "card",
+    });
+  }
+
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name || !form.phone || !form.email || !form.password || !form.classKey) {
       toast.error("필수 항목을 모두 입력해주세요.");
@@ -591,12 +637,12 @@ function ApplyForm() {
       toast.error("일정을 선택해주세요.");
       return;
     }
-    setSubmitting(true);
-    const app: Application = {
+
+    const baseApp: Application = {
       id: crypto.randomUUID(),
       name: form.name,
       phone: form.phone,
-      email: form.email.toLowerCase(),
+      email: form.email.toLowerCase().trim(),
       password: form.password,
       note: form.note,
       classKey: form.classKey as ClassKey,
@@ -605,23 +651,31 @@ function ApplyForm() {
       status: "pending",
       createdAt: new Date().toISOString(),
     };
-    const list = loadApps();
-    list.push(app);
-    saveApps(list);
-    setTimeout(() => {
-      setSubmitting(false);
-      toast.success("신청이 완료되었습니다. 결제 안내 메일을 확인해주세요.");
-      setForm({
-        name: "",
-        phone: "",
-        email: "",
-        password: "",
-        note: "",
-        classKey: "",
-        schedule: "",
-        payment: "card",
-      });
-    }, 500);
+
+    setStage({ kind: "processing", method: form.payment });
+
+    if (form.payment === "card") {
+      const result = await mockPortonePay(baseApp);
+      const paidApp: Application = {
+        ...baseApp,
+        status: "paid",
+        paymentRef: result.impUid,
+      };
+      const list = loadApps();
+      list.push(paidApp);
+      saveApps(list);
+      setStage({ kind: "card-success", app: paidApp });
+      resetForm();
+    } else {
+      // Bank transfer: save as pending, show account info
+      const list = loadApps();
+      list.push(baseApp);
+      saveApps(list);
+      // brief simulated loading for UX consistency
+      await new Promise((r) => setTimeout(r, 500));
+      setStage({ kind: "bank-pending", app: baseApp });
+      resetForm();
+    }
   }
 
   return (
@@ -755,13 +809,36 @@ function ApplyForm() {
           <Button
             type="submit"
             size="lg"
-            disabled={submitting}
+            disabled={stage.kind === "processing"}
             className="h-14 w-full bg-neon text-base font-semibold text-neon-foreground hover:bg-neon/90"
           >
-            {submitting ? "처리 중..." : "신청하기"}
+            {stage.kind === "processing" ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" /> 처리 중...
+              </>
+            ) : form.payment === "card" ? (
+              "결제하기"
+            ) : (
+              "신청하기"
+            )}
           </Button>
         </form>
       </div>
+
+      <PaymentProcessingDialog
+        open={stage.kind === "processing"}
+        method={stage.kind === "processing" ? stage.method : "card"}
+      />
+      <CardSuccessDialog
+        open={stage.kind === "card-success"}
+        app={stage.kind === "card-success" ? stage.app : null}
+        onClose={() => setStage({ kind: "idle" })}
+      />
+      <BankInfoDialog
+        open={stage.kind === "bank-pending"}
+        app={stage.kind === "bank-pending" ? stage.app : null}
+        onClose={() => setStage({ kind: "idle" })}
+      />
     </section>
   );
 }
@@ -780,6 +857,185 @@ function Field({
     </div>
   );
 }
+
+/* -------------------- PAYMENT DIALOGS -------------------- */
+function PaymentProcessingDialog({
+  open,
+  method,
+}: {
+  open: boolean;
+  method: "card" | "bank";
+}) {
+  return (
+    <Dialog open={open}>
+      <DialogContent
+        className="max-w-sm bg-surface"
+        onEscapeKeyDown={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
+        <div className="flex flex-col items-center gap-4 py-6 text-center">
+          <Loader2 className="h-10 w-10 animate-spin text-neon" />
+          <div>
+            <div className="font-semibold">
+              {method === "card"
+                ? "결제창을 여는 중입니다"
+                : "신청을 접수하는 중입니다"}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {method === "card"
+                ? "포트원(PortOne) 결제창 · 잠시만 기다려주세요"
+                : "잠시만 기다려주세요"}
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CardSuccessDialog({
+  open,
+  app,
+  onClose,
+}: {
+  open: boolean;
+  app: Application | null;
+  onClose: () => void;
+}) {
+  const c = app ? CLASS_OPTIONS.find((x) => x.key === app.classKey) : null;
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md bg-surface">
+        <DialogHeader>
+          <div className="mb-2 grid h-12 w-12 place-items-center rounded-full bg-neon/15 text-neon">
+            <Check className="h-6 w-6" />
+          </div>
+          <DialogTitle>결제가 완료되었습니다</DialogTitle>
+          <DialogDescription>
+            신청이 정상적으로 접수되었습니다. 아래 내역을 확인해주세요.
+          </DialogDescription>
+        </DialogHeader>
+        {app && c && (
+          <div className="space-y-2 rounded-lg border border-border bg-background/40 p-4 text-sm">
+            <Row label="신청자" value={`${app.name} (${app.email})`} />
+            <Row label="클래스" value={c.title} />
+            <Row label="일정" value={app.schedule} />
+            <Row label="결제 금액" value={`${priceOf(app.classKey).toLocaleString()}원`} />
+            <Row
+              label="결제 방법"
+              value={
+                <span className="inline-flex items-center gap-1">
+                  <CreditCard className="h-3.5 w-3.5" /> 카드결제
+                </span>
+              }
+            />
+            {app.paymentRef && (
+              <Row label="거래번호" value={<span className="font-mono text-xs">{app.paymentRef}</span>} />
+            )}
+          </div>
+        )}
+        <DialogFooter>
+          <Button
+            onClick={onClose}
+            className="w-full bg-neon text-neon-foreground hover:bg-neon/90"
+          >
+            확인
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BankInfoDialog({
+  open,
+  app,
+  onClose,
+}: {
+  open: boolean;
+  app: Application | null;
+  onClose: () => void;
+}) {
+  const c = app ? CLASS_OPTIONS.find((x) => x.key === app.classKey) : null;
+  const accountText = `${BANK_INFO.bank} ${BANK_INFO.account} (${BANK_INFO.holder})`;
+  function copy() {
+    navigator.clipboard.writeText(accountText).then(
+      () => toast.success("계좌 정보가 복사되었습니다."),
+      () => toast.error("복사에 실패했습니다."),
+    );
+  }
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md bg-surface">
+        <DialogHeader>
+          <DialogTitle>무통장입금 안내</DialogTitle>
+          <DialogDescription>
+            아래 계좌로 입금해주세요.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="rounded-lg border border-neon/40 bg-neon/5 p-4">
+            <div className="text-xs text-muted-foreground">입금 계좌</div>
+            <div className="mt-1 font-display text-lg font-bold text-neon">
+              {BANK_INFO.holder}
+            </div>
+            <div className="mt-0.5 text-sm">
+              {BANK_INFO.bank} <span className="font-mono">{BANK_INFO.account}</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={copy}
+              className="mt-3 h-8 border-neon/40 text-neon hover:bg-neon hover:text-neon-foreground"
+            >
+              <Copy className="mr-1.5 h-3.5 w-3.5" /> 계좌 복사
+            </Button>
+          </div>
+
+          {app && c && (
+            <div className="space-y-2 rounded-lg border border-border bg-background/40 p-4 text-sm">
+              <Row label="신청자" value={`${app.name}`} />
+              <Row label="클래스" value={c.title} />
+              <Row label="일정" value={app.schedule} />
+              <Row
+                label="입금 금액"
+                value={
+                  <span className="font-semibold text-neon">
+                    {priceOf(app.classKey).toLocaleString()}원
+                  </span>
+                }
+              />
+            </div>
+          )}
+
+          <p className="rounded-lg border border-border bg-background/30 p-3 text-xs leading-relaxed text-muted-foreground">
+            계좌번호로 입금 완료 후, 관리자 확인을 거쳐 신청이 최종 확정됩니다.
+          </p>
+        </div>
+
+        <DialogFooter>
+          <Button
+            onClick={onClose}
+            className="w-full bg-neon text-neon-foreground hover:bg-neon/90"
+          >
+            확인
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-right text-sm">{value}</span>
+    </div>
+  );
+}
+
 
 /* -------------------- CHECK STATUS -------------------- */
 function CheckDialog({
