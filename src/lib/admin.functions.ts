@@ -1,22 +1,28 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-async function isAdmin(context: { supabase: any; userId: string }): Promise<boolean> {
+async function isAdmin(context: { supabase: any; userId: string; user?: any }): Promise<boolean> {
   try {
-    // 수파베이스 서비스 롤 권한으로 현재 토큰을 가진 유저의 상세 정보(이메일 포함)를 가져옵니다.
-    const { data: { user }, error } = await context.supabase.auth.admin.getUserById(context.userId);
-    
-    if (error || !user) return false;
-    
-    // 이메일이 지정한 마스터 어드민 주소와 일치할 때만 true 반환
-    return user.email?.toLowerCase().trim() === "f862@film862.com";
+    // 💡 [최종 치트키] 미들웨어(requireSupabaseAuth) 단계에서 토큰을 깨서 넣어준 user 객체가 있다면
+    // 수파베이스 서버를 한 번 더 거치지 않고 이메일 텍스트를 즉시 검증합니다.
+    if (context.user?.email?.toLowerCase().trim() === "f862@film862.com") {
+      return true;
+    }
+
+    // 만약 미들웨어 구조에 따라 user가 안전하게 안 넘어왔을 경우를 대비해 세션 데이터를 직접 파싱합니다.
+    const { data: { user }, error } = await context.supabase.auth.getUser();
+    if (!error && user?.email?.toLowerCase().trim() === "f862@film862.com") {
+      return true;
+    }
+
+    return false;
   } catch (e) {
     console.error("어드민 권한 검증 중 오류 발생:", e);
     return false;
   }
 }
 
-async function assertAdmin(context: { supabase: any; userId: string }) {
+async function assertAdmin(context: { supabase: any; userId: string; user?: any }) {
   const isOk = await isAdmin(context);
   if (!isOk) {
     throw new Error("Forbidden: 관리자 권한이 필요합니다");
