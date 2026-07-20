@@ -784,6 +784,8 @@ function ApplyForm() {
               onValueChange={(v) => {
                 set("classKey", v as ClassKey);
                 set("schedule", "");
+                set("schedule1", "");
+                set("schedule2", "");
               }}
             >
               <SelectTrigger>
@@ -799,7 +801,46 @@ function ApplyForm() {
             </Select>
           </Field>
 
-          {schedules.length > 0 && (
+          {isPackage && (
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="1강 일정 *">
+                <Select
+                  value={form.schedule1}
+                  onValueChange={(v) => set("schedule1", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="1강 일정을 선택하세요" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pkgSchedules1.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="2강 일정 *">
+                <Select
+                  value={form.schedule2}
+                  onValueChange={(v) => set("schedule2", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="2강 일정을 선택하세요" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pkgSchedules2.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+          )}
+
+          {!isPackage && schedules.length > 0 && (
             <Field label="일정 *">
               <Select
                 value={form.schedule}
@@ -818,6 +859,7 @@ function ApplyForm() {
               </Select>
             </Field>
           )}
+
 
           <Field label="결제 방법 *">
             <RadioGroup
