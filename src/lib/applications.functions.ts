@@ -133,6 +133,51 @@ export const verifyPayment = createServerFn({ method: "POST" })
     return { ok: true as const, status: "PAID" as const };
   });
 
+// ---------- Verify by paymentId only (redirect return flow) ----------
+
+export const verifyPaymentByPaymentId = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z.object({ paymentId: z.string().min(1).max(200) }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+    const { getPortonePayment } = await import("@/lib/portone.server");
+
+    const { data: app, error: fetchError } = await supabaseAdmin
+      .from("applications")
+      .select("id, amount, portone_payment_id, status")
+      .eq("portone_payment_id", data.paymentId)
+      .single();
+    if (fetchError || !app) throw new Error("Application not found");
+
+    const payment = await getPortonePayment(data.paymentId);
+    const paidAmount = payment.amount?.total ?? 0;
+
+    if (payment.status !== "PAID" || paidAmount !== app.amount) {
+      await supabaseAdmin
+        .from("applications")
+        .update({ status: "failed" })
+        .eq("id", app.id);
+      return {
+        ok: false as const,
+        status: payment.status,
+        message: payment.failure?.message ?? "결제가 완료되지 않았습니다.",
+      };
+    }
+
+    await supabaseAdmin
+      .from("applications")
+      .update({
+        status: "paid",
+        payment_ref: payment.transactionId ?? payment.id,
+      })
+      .eq("id", app.id);
+
+    return { ok: true as const, status: "PAID" as const };
+  });
+
 // ---------- Lookup applications by email + password ----------
 
 const lookupSchema = z.object({
