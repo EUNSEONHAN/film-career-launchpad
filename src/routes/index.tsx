@@ -759,7 +759,7 @@ function ApplyForm() {
     setIsSubmitting(true);
 
     try {
-      const { createApplication, verifyPayment } = await import(
+      const { createApplication, verifyPayment, confirmBrowserPayment } = await import(
         "@/lib/applications.functions"
       );
 
@@ -812,10 +812,20 @@ function ApplyForm() {
         setStage({ kind: "idle" });
         return;
       }
-      // A response without an error code means the payment window completed
-      // successfully. Show the confirmation immediately; server-side amount
-      // verification continues independently so it cannot hold the UI in the
-      // submitting state while the provider finishes syncing the payment.
+      // Mark the row as paid immediately based on the browser SDK success.
+      // KakaoPay's server-side status can lag by several seconds, so relying
+      // solely on the async verify leaves 신청 조회 stuck on "결제 대기".
+      try {
+        await confirmBrowserPayment({
+          data: {
+            applicationId: created.applicationId,
+            paymentId: created.paymentId,
+            paymentRef: payRes.paymentRef,
+          },
+        });
+      } catch (err) {
+        console.error("confirmBrowserPayment failed", err);
+      }
       setStage({
         kind: "card-success",
         app: { ...appPreview, paymentRef: payRes.paymentRef },
