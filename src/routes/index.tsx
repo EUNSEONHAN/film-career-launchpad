@@ -650,6 +650,7 @@ async function openPortonePayment(args: {
       : { payMethod: "CARD" as const };
   const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   const safeOrderName = args.orderName.replace(/[·]/g, "-").slice(0, 40);
+  const redirectUrl = `${window.location.origin}/?portone=${encodeURIComponent(args.paymentId)}`;
   const payload: Record<string, unknown> = {
     storeId: cfg.storeId,
     channelKey,
@@ -659,10 +660,15 @@ async function openPortonePayment(args: {
     currency: "CURRENCY_KRW",
     customer: args.customer,
     ...req,
+    // KG Inicis uses a popup on desktop and a redirect on mobile. Declaring
+    // both modes prevents the SDK from sending a redirect request to the PC
+    // HTML5_INICIS module, which it rejects as an unsupported feature.
+    windowType: {
+      pc: "POPUP",
+      mobile: "REDIRECTION",
+    },
+    redirectUrl,
   };
-  if (isMobile) {
-    payload.redirectUrl = `${window.location.origin}/?portone=${encodeURIComponent(args.paymentId)}`;
-  }
   const res = await PortOne.requestPayment(
     payload as Parameters<typeof PortOne.requestPayment>[0],
   );
