@@ -43,11 +43,13 @@ function AdminPage() {
   const deleteFn = useServerFn(deleteApplication);
   const [query, setQuery] = useState("");
   const [scheduleFilter, setScheduleFilter] = useState<string>("all");
+  
+  // 💡 현금영수증 필터 상태 추가 (all: 전체, cash_receipt: 현금영수증 신청자만)
+  const [receiptFilter, setReceiptFilter] = useState<string>("all");
 
   const [isMounted, setIsMounted] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
-  // 💡 마운트 직후 수파베이스 현재 세션에서 이메일을 안전하게 추출
   useEffect(() => {
     setIsMounted(true);
     void (async () => {
@@ -124,7 +126,7 @@ function AdminPage() {
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
 
-    const base = scheduleFilter === "all"
+    let base = scheduleFilter === "all"
       ? ((appsQ.data ?? []) as any[]).map((r) => ({
           ...r,
           _viewClass: r.class_key,
@@ -138,15 +140,21 @@ function AdminPage() {
           return true;
         });
 
+    // 💡 현금영수증 필터 적용: note 필드에 '[현금영수증]' 글자가 포함된 것만 필터링
+    if (receiptFilter === "cash_receipt") {
+      base = base.filter((r) => r.note?.includes("[현금영수증]"));
+    }
+
     return base.filter((r) => {
       if (!q) return true;
       return (
         r.name?.toLowerCase().includes(q) ||
         r.email?.toLowerCase().includes(q) ||
-        r.phone?.toLowerCase().includes(q)
+        r.phone?.toLowerCase().includes(q) ||
+        r.note?.toLowerCase().includes(q)
       );
     });
-  }, [appsQ.data, expandedAll, query, scheduleFilter]);
+  }, [appsQ.data, expandedAll, query, scheduleFilter, receiptFilter]);
 
   async function handleLogout() {
     await qc.cancelQueries();
@@ -158,7 +166,7 @@ function AdminPage() {
   function exportCsv() {
     const list = rows;
     const header = [
-      "id","이름","연락처","이메일","클래스","일정","결제수단","금액","상태","결제ID","신청일","환불요청","환불완료",
+      "id","이름","연락처","이메일","클래스","일정","결제수단","금액","상태","결제ID","메모/현금영수증","신청일","환불요청","환불완료",
     ];
     const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const csv = [
@@ -171,6 +179,7 @@ function AdminPage() {
           PAYMENT_LABELS[r.payment_method] ?? r.payment_method,
           r.amount, r.status,
           r.portone_payment_id ?? r.payment_ref ?? "",
+          r.note ?? "",
           r.created_at, r.refund_requested_at ?? "", r.refunded_at ?? "",
         ].map(escape).join(","),
       ),
@@ -188,7 +197,6 @@ function AdminPage() {
     return <div className="p-10 text-center text-muted-foreground">확인 중...</div>;
   }
 
-  // 💡 추출한 이메일이 마스터 어드민 주소와 일치하면 가드를 통과시킵니다.
   const isMasterAdmin = currentUserEmail === "f862@film862.com";
 
   if (!isMasterAdmin && (adminQ.isError || !adminQ.data?.isAdmin)) {
@@ -256,9 +264,20 @@ function AdminPage() {
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
-          {(scheduleFilter !== "all" || query) && (
+
+          {/* 💡 현금영수증 필터 셀렉트박스 추가 */}
+          <select
+            value={receiptFilter}
+            onChange={(e) => setReceiptFilter(e.target.value)}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-primary border-primary/40 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+          >
+            <option value="all">전체 신청 내역</option>
+            <option value="cash_receipt">🧾 현금영수증 신청자만 보기</option>
+          </select>
+
+          {(scheduleFilter !== "all" || query || receiptFilter !== "all") && (
             <button
-              onClick={() => { setScheduleFilter("all"); setQuery(""); }}
+              onClick={() => { setScheduleFilter("all"); setQuery(""); setReceiptFilter("all"); }}
               className="rounded-md border border-border px-3 py-2 text-xs hover:bg-accent"
             >
               필터 초기화
@@ -284,7 +303,7 @@ function AdminPage() {
                 <th className="px-3 py-2">연락처</th>
                 <th className="px-3 py-2">이메일</th>
                 <th className="px-3 py-2">클래스 · 일정</th>
-                <th className="px-3 py-2">결제</th>
+                <th className="px-3 py-2">결제 · 메모</th>
                 <th className="px-3 py-2">금액</th>
                 <th className="px-3 py-2">상태</th>
                 <th className="px-3 py-2">작업</th>
@@ -308,15 +327,21 @@ function AdminPage() {
                     )}
                   </td>
                   <td className="px-3 py-2 text-xs">
-                    <div>{PAYMENT_LABELS[r.payment_method] ?? r.payment_method}</div>
+                    <div className="font-semibold">{PAYMENT_LABELS[r.payment_method] ?? r.payment_method}</div>
                     {r.portone_payment_id && (
                       <div className="text-muted-foreground break-all">
                         {r.portone_payment_id}
                       </div>
                     )}
+                    {/* 💡 현금영수증 문구가 있을 경우 가시성 높게 하이라이팅 처리 */}
+                    {r.note && (
+                      <div className={`mt-1 p-1.5 rounded text-xs ${r.note.includes('[현금영수증]') ? 'bg-yellow-500/10 border border-yellow-500/30 text-amber-700 font-medium' : 'text-muted-foreground bg-muted'}`}>
+                        {r.note}
+                      </div>
+                    )}
                   </td>
 
-                  <td className="px-3 py-2">{r.amount?.toLocaleString()}원</td>
+                  <td className="px-3 py-2 font-medium">{r.amount?.toLocaleString()}원</td>
                   <td className="px-3 py-2">
                     <StatusBadge status={r.status} />
                     {r.refunded_at && (
@@ -407,6 +432,7 @@ function AdminPage() {
   );
 }
 
+// 기존 StatusBadge 유지
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     paid: "bg-green-500/20 text-green-400",
