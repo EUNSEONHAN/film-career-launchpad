@@ -90,35 +90,42 @@ const NAV = [
   { id: "check", label: "신청 조회" },
 ];
 
-type Application = {
+type PaymentMethod = "card" | "kakaopay" | "bank";
+type ApplicationStatus =
+  | "pending"
+  | "bank_pending"
+  | "paid"
+  | "failed"
+  | "refund_requested"
+  | "refunded";
+
+// Server-shaped record returned from lookupApplications.
+type AppRecord = {
   id: string;
   name: string;
   phone: string;
   email: string;
-  password: string;
-  note: string;
-  classKey: ClassKey;
+  class_key: ClassKey;
   schedule: string;
-  payment: "card" | "bank";
-  status: "pending" | "paid" | "refunded";
-  paymentRef?: string;
-  createdAt: string;
+  payment_method: PaymentMethod;
+  amount: number;
+  status: ApplicationStatus;
+  created_at: string;
+  refund_requested_at: string | null;
+  refunded_at: string | null;
 };
 
-const STORAGE_KEY = "862-academy-applications";
-
-function loadApps(): Application[] {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
-}
-
-function saveApps(list: Application[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-}
+// Client-shaped copy used only for the payment-confirmation dialogs after submit.
+type Application = {
+  id: string;
+  name: string;
+  email: string;
+  classKey: ClassKey;
+  schedule: string;
+  payment: PaymentMethod;
+  paymentRef?: string;
+  amount: number;
+};
 
 function scrollTo(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -128,31 +135,7 @@ function LandingPage() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [checkOpen, setCheckOpen] = useState(false);
 
-  // Admin data-export helpers (available in browser devtools):
-  //   __862.export()           -> JSON blob of all applications
-  //   __862.download()         -> downloads applications.json
-  //   __862.clear()            -> wipe local mock DB
-  useEffect(() => {
-    const api = {
-      export: () => loadApps(),
-      download: () => {
-        const blob = new Blob([JSON.stringify(loadApps(), null, 2)], {
-          type: "application/json",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `862-applications-${new Date().toISOString().slice(0, 10)}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-      },
-      clear: () => {
-        localStorage.removeItem(STORAGE_KEY);
-        return "cleared";
-      },
-    };
-    (window as unknown as { __862?: typeof api }).__862 = api;
-  }, []);
+
 
   return (
     <div className="min-h-screen bg-background text-foreground">
