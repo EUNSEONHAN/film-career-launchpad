@@ -135,6 +135,33 @@ function LandingPage() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [checkOpen, setCheckOpen] = useState(false);
 
+  // Handle PortOne redirect return (mobile flow)
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const paymentId = url.searchParams.get("portone");
+    if (!paymentId) return;
+    url.searchParams.delete("portone");
+    window.history.replaceState({}, "", url.toString());
+    (async () => {
+      try {
+        const { verifyPaymentByPaymentId } = await import(
+          "@/lib/applications.functions"
+        );
+        const res = await verifyPaymentByPaymentId({ data: { paymentId } });
+        if (res.ok) {
+          toast.success("결제가 완료되었습니다.");
+        } else {
+          toast.error(res.message ?? "결제 검증에 실패했습니다.");
+        }
+      } catch (e) {
+        console.error(e);
+        toast.error("결제 확인 중 오류가 발생했습니다.");
+      }
+    })();
+  }, []);
+
+
+
 
 
   return (
