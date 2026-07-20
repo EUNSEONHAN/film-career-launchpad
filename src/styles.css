@@ -7,6 +7,7 @@
 @theme inline {
   --font-sans: "Pretendard", "Pretendard Variable", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Playfair Display", "Pretendard", serif;
+  --font-script: "Great Vibes", "Playfair Display", cursive;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
