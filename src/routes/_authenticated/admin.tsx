@@ -113,7 +113,7 @@ function AdminPage() {
   }
 
   function exportCsv() {
-    const list = appsQ.data ?? [];
+    const list = rows;
     const header = [
       "id","이름","연락처","이메일","클래스","일정","결제수단","금액","상태","결제ID","신청일","환불요청","환불완료",
     ];
@@ -123,8 +123,10 @@ function AdminPage() {
       ...list.map((r: any) =>
         [
           r.id, r.name, r.phone, r.email,
-          CLASS_LABELS[r.class_key] ?? r.class_key,
-          r.schedule, r.payment_method, r.amount, r.status,
+          r._viewLabel ?? (CLASS_LABELS[r.class_key] ?? r.class_key),
+          r._viewSchedule ?? r.schedule,
+          PAYMENT_LABELS[r.payment_method] ?? r.payment_method,
+          r.amount, r.status,
           r.portone_payment_id ?? r.payment_ref ?? "",
           r.created_at, r.refund_requested_at ?? "", r.refunded_at ?? "",
         ].map(escape).join(","),
@@ -138,6 +140,7 @@ function AdminPage() {
     a.click();
     URL.revokeObjectURL(url);
   }
+
 
   if (adminQ.isLoading) {
     return <div className="p-10 text-center text-muted-foreground">확인 중...</div>;
