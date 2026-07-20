@@ -174,12 +174,12 @@ function Nav({
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <button
           onClick={() => scrollTo("home")}
-          className="flex items-center gap-2 text-lg font-bold tracking-tight"
+          className="flex items-center gap-2 tracking-tight"
         >
           <span className="grid h-8 w-8 place-items-center rounded-md bg-neon text-neon-foreground">
             <Film className="h-4 w-4" />
           </span>
-          <span>862 아카데미</span>
+          <span className="font-script text-2xl leading-none text-neon">862 Academy</span>
         </button>
         <nav className="hidden items-center gap-8 md:flex">
           {NAV.map((n) => (
