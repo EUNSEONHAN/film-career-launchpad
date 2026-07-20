@@ -47,37 +47,63 @@ export class PortonePaymentPendingError extends Error {
 export async function getPortonePayment(
   paymentId: string,
 ): Promise<PortonePayment> {
+  // 💡 모바일 리다이렉트 도중 유실되거나 공백이 포함될 수 있는 paymentId 문자열을 안전하게 정제합니다.
+  const cleanPaymentId = String(paymentId ?? "").trim();
+  if (!cleanPaymentId) {
+    throw new Error("PortOne getPayment failed: paymentId is empty or invalid.");
+  }
+
   const url = new URL(
-    `${PORTONE_API_BASE}/payments/${encodeURIComponent(paymentId)}`,
+    `${PORTONE_API_BASE}/payments/${encodeURIComponent(cleanPaymentId)}`,
   );
 
-  // Keep each verification request short. The caller owns the polling cadence;
-  // retrying here as well multiplies the wait and can leave the checkout UI
-  // blocked for minutes.
-  const res = await fetch(url.toString(), {
-    headers: { Authorization: `PortOne ${getApiSecret()}` },
-  });
-  if (res.ok) return (await res.json()) as PortonePayment;
-  const body = await res.text();
-  if (res.status === 404 && body.includes("PAYMENT_NOT_FOUND")) {
-    throw new PortonePaymentPendingError(paymentId);
+  try {
+    // Keep each verification request short. The caller owns the polling cadence;
+    // retrying here as well multiplies the wait and can leave the checkout UI
+    // blocked for minutes.
+    const res = await fetch(url.toString(), {
+      headers: { 
+        Authorization: `PortOne ${getApiSecret()}`,
+        "Accept": "application/json"
+      },
+    });
+
+    if (res.ok) {
+      return (await res.json()) as PortonePayment;
+    }
+
+    const body = await res.text();
+    if (res.status === 404 && body.includes("PAYMENT_NOT_FOUND")) {
+      throw new PortonePaymentPendingError(cleanPaymentId);
+    }
+    
+    throw new Error(`PortOne getPayment failed [${res.status}]: ${body}`);
+  } catch (error: any) {
+    // 네트워크 단절이나 엣지 컴퓨팅 캐싱 충돌 시 상위 라우터에서 복구할 수 있도록 에러를 명확히 래핑합니다.
+    if (error instanceof PortonePaymentPendingError) throw error;
+    console.error("PortOne API Fetch Error:", error);
+    throw new Error(`PortOne REST Client Fetch Network Error: ${error?.message ?? "Unknown"}`);
   }
-  throw new Error(`PortOne getPayment failed [${res.status}]: ${body}`);
 }
 
 export async function cancelPortonePayment(
   paymentId: string,
   reason: string,
 ): Promise<void> {
+  const cleanPaymentId = String(paymentId ?? "").trim();
+  if (!cleanPaymentId) {
+    throw new Error("PortOne cancel failed: paymentId is empty or invalid.");
+  }
+
   const res = await fetch(
-    `${PORTONE_API_BASE}/payments/${encodeURIComponent(paymentId)}/cancel`,
+    `${PORTONE_API_BASE}/payments/${encodeURIComponent(cleanPaymentId)}/cancel`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `PortOne ${getApiSecret()}`,
       },
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify({ reason: reason || "관리자 취소 요청" }),
     },
   );
   if (!res.ok) {

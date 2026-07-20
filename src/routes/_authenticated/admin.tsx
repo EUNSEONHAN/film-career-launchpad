@@ -13,6 +13,16 @@ import {
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPage,
   head: () => ({ meta: [{ title: "관리자 | 862 아카데미" }] }),
+  // 💡 [모바일 스크립트 에러 방지] 스크립트 유실 시 에러를 프론트에서 캐치하여 부드럽게 재로드 유도
+  errorComponent: ({ error, reset }) => {
+    useEffect(() => {
+      // 스크립트 로드 실패 에러 감지 시 자동으로 페이지를 새로고침하여 캐시를 갱신합니다.
+      if (error?.message?.includes("module") || error?.name?.includes("ChunkLoadError")) {
+        window.location.reload();
+      }
+    }, [error]);
+    return <div className="p-10 text-center text-muted-foreground">페이지를 새로고침하고 있습니다...</div>;
+  }
 });
 
 const CLASS_LABELS: Record<string, string> = {
@@ -43,8 +53,6 @@ function AdminPage() {
   const deleteFn = useServerFn(deleteApplication);
   const [query, setQuery] = useState("");
   const [scheduleFilter, setScheduleFilter] = useState<string>("all");
-  
-  // 💡 현금영수증 필터 상태 추가 (all: 전체, cash_receipt: 현금영수증 신청자만)
   const [receiptFilter, setReceiptFilter] = useState<string>("all");
 
   const [isMounted, setIsMounted] = useState(false);
@@ -140,7 +148,6 @@ function AdminPage() {
           return true;
         });
 
-    // 💡 현금영수증 필터 적용: note 필드에 '[현금영수증]' 글자가 포함된 것만 필터링
     if (receiptFilter === "cash_receipt") {
       base = base.filter((r) => r.note?.includes("[현금영수증]"));
     }
@@ -265,11 +272,10 @@ function AdminPage() {
             ))}
           </select>
 
-          {/* 💡 현금영수증 필터 셀렉트박스 추가 */}
           <select
             value={receiptFilter}
             onChange={(e) => setReceiptFilter(e.target.value)}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-primary border-primary/40 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-primary border-primary/40 focus:border-primary"
           >
             <option value="all">전체 신청 내역</option>
             <option value="cash_receipt">🧾 현금영수증 신청자만 보기</option>
@@ -333,7 +339,6 @@ function AdminPage() {
                         {r.portone_payment_id}
                       </div>
                     )}
-                    {/* 💡 현금영수증 문구가 있을 경우 가시성 높게 하이라이팅 처리 */}
                     {r.note && (
                       <div className={`mt-1 p-1.5 rounded text-xs ${r.note.includes('[현금영수증]') ? 'bg-yellow-500/10 border border-yellow-500/30 text-amber-700 font-medium' : 'text-muted-foreground bg-muted'}`}>
                         {r.note}
@@ -432,7 +437,6 @@ function AdminPage() {
   );
 }
 
-// 기존 StatusBadge 유지
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     paid: "bg-green-500/20 text-green-400",
