@@ -1003,7 +1003,7 @@ function ApplyForm() {
           클래스 신청하기
         </h2>
         <p className="mt-3 text-muted-foreground">
-          비회원도 신청 가능합니다. 조회용 비밀번호를 꼭 기억해주세요.
+          누구나 신청 가능합니다. 조회용 비밀번호를 꼭 기억해주세요.
         </p>
 
         <form
@@ -1540,7 +1540,8 @@ function CheckDialog({
         <DialogHeader>
           <DialogTitle>신청 조회</DialogTitle>
           <DialogDescription>
-            신청 시 입력한 이메일과 비밀번호로 조회하세요.
+            신청 시 입력한 이메일과 비밀번호를 입력 해 주세요.
+            문의 : f862@film862.com
           </DialogDescription>
         </DialogHeader>
 
