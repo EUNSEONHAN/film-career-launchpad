@@ -571,7 +571,7 @@ function Instructor() {
 /* -------------------- APPLY FORM -------------------- */
 type PayStage =
   | { kind: "idle" }
-  | { kind: "processing"; method: "card" | "bank" }
+  | { kind: "processing"; method: PaymentMethod }
   | { kind: "card-success"; app: Application }
   | { kind: "bank-pending"; app: Application };
 
@@ -593,13 +593,45 @@ function priceOf(key: ClassKey): number {
   }
 }
 
-async function mockPortonePay(app: Application): Promise<{ ok: true; impUid: string }> {
-  // Simulate Portone SDK popup + PG authorization
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({ ok: true, impUid: `imp_${Date.now()}_${app.id.slice(0, 6)}` });
-    }, 1600);
-  });
+// PortOne V2 browser SDK — loaded dynamically on demand (browser only).
+async function openPortonePayment(args: {
+  method: "card" | "kakaopay";
+  paymentId: string;
+  orderName: string;
+  totalAmount: number;
+  customer: { fullName: string; email: string; phoneNumber: string };
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { PORTONE_STORE_ID, PORTONE_CHANNEL_KEYS, isPortoneConfigured } =
+    await import("@/config/portone");
+  if (!isPortoneConfigured(args.method)) {
+    return {
+      ok: false,
+      message:
+        "결제 설정이 완료되지 않았습니다. 관리자에게 문의해주세요. (PortOne 키 미설정)",
+    };
+  }
+  const PortOne = (await import("@portone/browser-sdk/v2")).default;
+  const req =
+    args.method === "kakaopay"
+      ? {
+          payMethod: "EASY_PAY" as const,
+          easyPay: { easyPayProvider: "EASY_PAY_PROVIDER_KAKAOPAY" as const },
+        }
+      : { payMethod: "CARD" as const };
+  const res = await PortOne.requestPayment({
+    storeId: PORTONE_STORE_ID,
+    channelKey: PORTONE_CHANNEL_KEYS[args.method],
+    paymentId: args.paymentId,
+    orderName: args.orderName,
+    totalAmount: args.totalAmount,
+    currency: "CURRENCY_KRW",
+    customer: args.customer,
+    ...req,
+  } as Parameters<typeof PortOne.requestPayment>[0]);
+  if (res?.code) {
+    return { ok: false, message: res.message ?? "결제가 취소되었습니다." };
+  }
+  return { ok: true };
 }
 
 function ApplyForm() {
@@ -613,7 +645,7 @@ function ApplyForm() {
     schedule: "",
     schedule1: "",
     schedule2: "",
-    payment: "card" as "card" | "bank",
+    payment: "card" as PaymentMethod,
   });
   const [stage, setStage] = useState<PayStage>({ kind: "idle" });
 
@@ -665,46 +697,91 @@ function ApplyForm() {
       ? `1강: ${form.schedule1} + 2강: ${form.schedule2}`
       : form.schedule || "일정 개별 조율";
 
+    const classKey = form.classKey as ClassKey;
+    const paymentMethod = form.payment;
 
-    const baseApp: Application = {
-      id: crypto.randomUUID(),
-      name: form.name,
-      phone: form.phone,
-      email: form.email.toLowerCase().trim(),
-      password: form.password,
-      note: form.note,
-      classKey: form.classKey as ClassKey,
-      schedule: combinedSchedule,
-      payment: form.payment,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    };
+    setStage({ kind: "processing", method: paymentMethod });
 
-    setStage({ kind: "processing", method: form.payment });
+    try {
+      const { createApplication, verifyPayment } = await import(
+        "@/lib/applications.functions"
+      );
 
-    if (form.payment === "card") {
-      const result = await mockPortonePay(baseApp);
-      const paidApp: Application = {
-        ...baseApp,
-        status: "paid",
-        paymentRef: result.impUid,
+      const created = await createApplication({
+        data: {
+          name: form.name,
+          phone: form.phone,
+          email: form.email,
+          password: form.password,
+          note: form.note,
+          classKey,
+          schedule: combinedSchedule,
+          paymentMethod,
+        },
+      });
+
+      const appPreview: Application = {
+        id: created.applicationId,
+        name: form.name,
+        email: form.email.toLowerCase().trim(),
+        classKey,
+        schedule: combinedSchedule,
+        payment: paymentMethod,
+        amount: created.amount,
       };
-      const list = loadApps();
-      list.push(paidApp);
-      saveApps(list);
-      setStage({ kind: "card-success", app: paidApp });
+
+      if (paymentMethod === "bank") {
+        setStage({ kind: "bank-pending", app: appPreview });
+        resetForm();
+        return;
+      }
+
+      // Card / KakaoPay via PortOne
+      if (!created.paymentId) {
+        throw new Error("결제 ID 발급에 실패했습니다.");
+      }
+      const payRes = await openPortonePayment({
+        method: paymentMethod,
+        paymentId: created.paymentId,
+        orderName: created.orderName,
+        totalAmount: created.amount,
+        customer: {
+          fullName: form.name,
+          email: form.email.trim(),
+          phoneNumber: form.phone,
+        },
+      });
+      if (!payRes.ok) {
+        toast.error(payRes.message);
+        setStage({ kind: "idle" });
+        return;
+      }
+      const verifyRes = await verifyPayment({
+        data: {
+          applicationId: created.applicationId,
+          paymentId: created.paymentId,
+        },
+      });
+      if (!verifyRes.ok) {
+        toast.error(verifyRes.message ?? "결제 검증에 실패했습니다.");
+        setStage({ kind: "idle" });
+        return;
+      }
+      setStage({
+        kind: "card-success",
+        app: { ...appPreview, paymentRef: created.paymentId },
+      });
       resetForm();
-    } else {
-      // Bank transfer: save as pending, show account info
-      const list = loadApps();
-      list.push(baseApp);
-      saveApps(list);
-      // brief simulated loading for UX consistency
-      await new Promise((r) => setTimeout(r, 500));
-      setStage({ kind: "bank-pending", app: baseApp });
-      resetForm();
+    } catch (err) {
+      console.error(err);
+      toast.error(
+        err instanceof Error ? err.message : "신청 처리 중 오류가 발생했습니다.",
+      );
+      setStage({ kind: "idle" });
     }
   }
+
+
 
   return (
     <section id="apply" className="relative border-t border-border/50 py-24 sm:py-32">
