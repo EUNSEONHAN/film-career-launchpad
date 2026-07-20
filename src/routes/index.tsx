@@ -138,7 +138,7 @@ function LandingPage() {
       <Classes />
       <Instructor />
       <ApplyForm />
-      <Footer onOpenCheck={() => setCheckOpen(true)} />
+      <Footer />
       <CheckDialog open={checkOpen} onOpenChange={setCheckOpen} />
     </div>
   );
@@ -920,52 +920,70 @@ function StatusPill({ status }: { status: Application["status"] }) {
 }
 
 /* -------------------- FOOTER -------------------- */
-function Footer({ onOpenCheck }: { onOpenCheck: () => void }) {
+function Footer() {
   return (
-    <footer className="border-t border-border/50 bg-surface/30 py-12">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:px-6 md:grid-cols-3">
-        <div>
-          <div className="flex items-center gap-2 text-lg font-bold">
-            <span className="grid h-8 w-8 place-items-center rounded-md bg-neon text-neon-foreground">
-              <Film className="h-4 w-4" />
-            </span>
-            862 아카데미
+    <footer className="border-t border-border/50 bg-surface/30 py-14">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="grid gap-10 md:grid-cols-[1.2fr_1fr_1fr]">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="grid h-8 w-8 place-items-center rounded-md bg-neon text-neon-foreground">
+                <Film className="h-4 w-4" />
+              </span>
+              <span className="font-script text-2xl text-neon">862 Academy</span>
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">
+              영화를 배운 다음의 이야기
+            </p>
           </div>
-          <p className="mt-3 text-sm text-muted-foreground">
-            영화를 배운 다음의 이야기.
-          </p>
-        </div>
-        <div className="text-sm">
-          <div className="mb-3 font-medium">Contact</div>
-          <a
-            href="mailto:f862@film862.com"
-            className="flex items-center gap-2 text-muted-foreground hover:text-neon"
-          >
-            <Mail className="h-4 w-4" /> f862@film862.com
-          </a>
-          <div className="mt-2 flex items-start gap-2 text-muted-foreground">
-            <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>판교스타트업캠퍼스</span>
+
+          <div className="text-sm">
+            <div className="mb-4 font-medium text-foreground">Contact Us</div>
+            <a
+              href="https://41ev6.channel.io/home"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 text-muted-foreground hover:text-neon"
+            >
+              <span>📧</span> 문의하기
+            </a>
+            <a
+              href="mailto:f862@flim862.com"
+              className="mt-2 flex items-center gap-2 text-muted-foreground hover:text-neon"
+            >
+              <Mail className="h-4 w-4" /> f862@flim862.com
+            </a>
+          </div>
+
+          <div className="text-sm">
+            <div className="mb-4 font-medium text-foreground">Information</div>
+            <p className="text-muted-foreground">주식회사 에프팔육이 | 대표 최지원</p>
+            <p className="mt-2 text-muted-foreground">📞 0507-1411-5737</p>
+            <p className="mt-2 text-muted-foreground">
+              📍 경기도 성남시 분당구 판교로289번길 20 판교스타트업캠퍼스 3동 1층 키움 09
+            </p>
+            <p className="mt-2 text-muted-foreground">사업자등록번호 439-87-03211</p>
+            <p className="text-muted-foreground">통신판매업 신고번호 제 2024-성남분당A-0401호</p>
           </div>
         </div>
-        <div className="text-sm">
-          <div className="mb-3 font-medium">Quick</div>
-          <button
-            onClick={() => scrollTo("apply")}
-            className="block text-muted-foreground hover:text-neon"
-          >
-            신청하기
-          </button>
-          <button
-            onClick={onOpenCheck}
-            className="mt-1 block text-muted-foreground hover:text-neon"
-          >
-            신청 조회
-          </button>
+
+        <div className="mx-auto mt-10 flex flex-col gap-4 border-t border-border/50 pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <a
+              href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=4398703211"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-neon"
+            >
+              [사업자정보확인]
+            </a>
+            <span className="hidden sm:inline">|</span>
+            <a href="#" className="hover:text-neon">이용약관</a>
+            <span className="hidden sm:inline">|</span>
+            <a href="#" className="hover:text-neon">개인정보처리방침</a>
+          </div>
+          <div>© f862 Inc. All Rights Reserved.</div>
         </div>
-      </div>
-      <div className="mx-auto mt-10 max-w-6xl border-t border-border/50 px-4 pt-6 text-xs text-muted-foreground sm:px-6">
-        © {new Date().getFullYear()} 862 Academy · (주)에프팔육이
       </div>
     </footer>
   );
