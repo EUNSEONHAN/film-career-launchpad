@@ -5,13 +5,11 @@ import {
   Check,
   Clock,
   Film,
-  Instagram,
   Mail,
   MapPin,
   Menu,
   Play,
   Sparkles,
-  UserRound,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
