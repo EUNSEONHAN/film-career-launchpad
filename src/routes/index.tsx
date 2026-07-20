@@ -683,7 +683,10 @@ async function openPortonePayment(args: {
   if (res?.code) {
     return { ok: false, message: res.message ?? "결제가 취소되었습니다." };
   }
-  return { ok: true, paymentRef: res.txId || res.paymentId || args.paymentId };
+  return {
+    ok: true,
+    paymentRef: res?.txId || res?.paymentId || args.paymentId,
+  };
 }
 
 function ApplyForm() {
