@@ -1467,6 +1467,13 @@ function CheckDialog({
                     : "무통장입금";
               const canRefund =
                 a.status !== "refunded" && a.status !== "refund_requested";
+              const accountText = `${BANK_INFO.bank} ${BANK_INFO.account} (${BANK_INFO.holder})`;
+              function copyAccount() {
+                navigator.clipboard.writeText(accountText).then(
+                  () => toast.success("계좌 정보가 복사되었습니다."),
+                  () => toast.error("복사에 실패했습니다."),
+                );
+              }
               return (
                 <div
                   key={a.id}
@@ -1501,6 +1508,26 @@ function CheckDialog({
                         "환불 신청"
                       )}
                     </Button>
+                  )}
+                  {a.status === "bank_pending" && (
+                    <div className="mt-3 rounded-lg border border-neon/20 bg-neon/5 p-3">
+                      <div className="text-xs text-muted-foreground">입금 계좌</div>
+                      <div className="mt-1 flex items-center justify-between gap-2">
+                        <span className="text-sm">
+                          {BANK_INFO.bank}{" "}
+                          <span className="font-mono">{BANK_INFO.account}</span>{" "}
+                          ({BANK_INFO.holder})
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={copyAccount}
+                          className="h-7 border-neon/40 px-2 text-xs text-neon hover:bg-neon hover:text-neon-foreground"
+                        >
+                          <Copy className="mr-1 h-3 w-3" /> 복사
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </div>
               );
