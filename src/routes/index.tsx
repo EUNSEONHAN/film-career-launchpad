@@ -36,7 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import heroBg from "@/assets/hero-bg.jpg";
+import defaultHeroVideo from "@/assets/cover_1080p.mp4.asset.json";
 import instructorImg from "@/assets/instructor.jpg";
 
 export const Route = createFileRoute("/")({
@@ -276,24 +276,16 @@ function Hero() {
       className="relative flex min-h-[100svh] items-center overflow-hidden pt-16"
     >
       <div className="absolute inset-0">
-        {videoUrl ? (
-          <video
-            src={videoUrl}
-            className="h-full w-full object-cover opacity-70"
-            autoPlay
-            loop
-            muted
-            playsInline
-          />
-        ) : (
-          <img
-            src={heroBg}
-            alt=""
-            className="h-full w-full object-cover opacity-70"
-            width={1920}
-            height={1080}
-          />
-        )}
+        <video
+          key={videoUrl ?? defaultHeroVideo.url}
+          src={videoUrl ?? defaultHeroVideo.url}
+          className="h-full w-full object-cover opacity-70"
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
+
         <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/60 to-background" />
         <div className="absolute inset-0 bg-grid opacity-40" />
       </div>
