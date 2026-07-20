@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   checkIsAdmin,
@@ -43,6 +43,13 @@ function AdminPage() {
   const deleteFn = useServerFn(deleteApplication);
   const [query, setQuery] = useState("");
   const [scheduleFilter, setScheduleFilter] = useState<string>("all");
+
+  // 💡 하이드레이션 에러 방지를 위한 마운트 상태 추가
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const adminQ = useQuery({
     queryKey: ["is-admin"],
@@ -174,12 +181,12 @@ function AdminPage() {
     URL.revokeObjectURL(url);
   }
 
-  if (adminQ.isLoading) {
+  // 💡 서버 빌드 단계이거나 브라우저 마운트 전이면 안전하게 로딩 구조 출력하여 #418 방지
+  if (!isMounted || adminQ.isLoading) {
     return <div className="p-10 text-center text-muted-foreground">확인 중...</div>;
   }
 
-  // 💡 세션 이메일이 정확한지 로컬스토리지 토큰으로 한 번 더 교차 검증을 수행하여 
-  // 통과했을 경우 '접근 권한이 없습니다' 차단 화면을 강제로 패스시킵니다.
+  // 💡 마운트가 완전히 완료된 후에만 localStorage 안전하게 체크
   const localSessionStr = typeof window !== "undefined" ? localStorage.getItem("supabase.auth.token") : null;
   let isLocalAdmin = false;
   try {
