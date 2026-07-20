@@ -822,6 +822,9 @@ function ApplyForm() {
       schedule1: "",
       schedule2: "",
       payment: "card",
+      receiptEnabled: false,
+      receiptType: "personal",
+      receiptNumber: "",
     });
   }
 
