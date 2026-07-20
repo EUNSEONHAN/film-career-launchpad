@@ -924,12 +924,16 @@ function ApplyForm() {
           <Field label="결제 방법 *">
             <RadioGroup
               value={form.payment}
-              onValueChange={(v) => set("payment", v as "card" | "bank")}
-              className="grid grid-cols-2 gap-3"
+              onValueChange={(v) => set("payment", v as PaymentMethod)}
+              className="grid grid-cols-3 gap-3"
             >
               <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background/40 p-3 text-sm has-[[data-state=checked]]:border-neon has-[[data-state=checked]]:bg-neon/10">
                 <RadioGroupItem value="card" />
                 카드결제
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background/40 p-3 text-sm has-[[data-state=checked]]:border-neon has-[[data-state=checked]]:bg-neon/10">
+                <RadioGroupItem value="kakaopay" />
+                카카오페이
               </label>
               <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background/40 p-3 text-sm has-[[data-state=checked]]:border-neon has-[[data-state=checked]]:bg-neon/10">
                 <RadioGroupItem value="bank" />
@@ -937,6 +941,7 @@ function ApplyForm() {
               </label>
             </RadioGroup>
           </Field>
+
 
           <Field label="비고">
             <Textarea
