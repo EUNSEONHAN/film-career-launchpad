@@ -234,42 +234,92 @@ function Nav({
 }
 
 /* -------------------- HERO -------------------- */
+const HERO_VIDEO_KEY = "862-academy-hero-video";
+
 function Hero() {
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(HERO_VIDEO_KEY);
+    if (saved) setVideoUrl(saved);
+  }, []);
+
+  const onUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("video/")) {
+      toast.error("영상 파일만 업로드 가능합니다.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      try {
+        localStorage.setItem(HERO_VIDEO_KEY, dataUrl);
+      } catch {
+        toast.message("파일이 너무 커서 저장되지 않지만 세션에서 재생됩니다.");
+      }
+      setVideoUrl(dataUrl);
+      toast.success("영상이 업로드되었습니다.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearVideo = () => {
+    localStorage.removeItem(HERO_VIDEO_KEY);
+    setVideoUrl(null);
+  };
+
   return (
     <section
       id="home"
       className="relative flex min-h-[100svh] items-center overflow-hidden pt-16"
     >
       <div className="absolute inset-0">
-        <img
-          src={heroBg}
-          alt=""
-          className="h-full w-full object-cover opacity-70"
-          width={1920}
-          height={1080}
-        />
+        {videoUrl ? (
+          <video
+            src={videoUrl}
+            className="h-full w-full object-cover opacity-70"
+            autoPlay
+            loop
+            muted
+            playsInline
+          />
+        ) : (
+          <img
+            src={heroBg}
+            alt=""
+            className="h-full w-full object-cover opacity-70"
+            width={1920}
+            height={1080}
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/60 to-background" />
         <div className="absolute inset-0 bg-grid opacity-40" />
       </div>
-      <div className="relative mx-auto w-full max-w-6xl px-4 py-24 sm:px-6">
+      <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center px-4 py-24 text-center sm:px-6">
         <Badge
           variant="outline"
           className="mb-6 border-neon/40 bg-neon/10 text-neon"
         >
           <Sparkles className="mr-1 h-3 w-3" /> 영화·영상 전공자를 위한 첫번째 클래스
         </Badge>
-        <h1 className="font-display text-4xl leading-[1.15] font-bold text-balance sm:text-5xl md:text-6xl lg:text-7xl">
-          영화과 다니다가
-          <br />
-          <span className="text-neon text-glow">'졸업하고 뭐하지'</span>
-          <br />
-          한 번이라도 고민한 적 있으신가요?
+        <h1 className="font-display font-bold text-balance">
+          <span className="block text-2xl leading-tight text-muted-foreground sm:text-3xl md:text-4xl">
+            영화과 다니다가
+          </span>
+          <span className="mt-3 block text-6xl leading-[1.05] text-neon text-glow sm:text-7xl md:text-8xl lg:text-9xl">
+            '졸업하고 뭐하지'
+          </span>
+          <span className="mt-3 block text-2xl leading-tight text-muted-foreground sm:text-3xl md:text-4xl">
+            한 번이라도 고민한 적 있으신가요?
+          </span>
         </h1>
-        <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+        <p className="mx-auto mt-8 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
           영화, 영상 전공자를 위한 첫번째 클래스. 졸업 후 진로부터 취업서류, 1:1
           커리어 컨설팅. 영화를 배운 다음의 이야기를 함께 나눠보려 합니다.
         </p>
-        <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <Button
             size="lg"
             onClick={() => scrollTo("apply")}
@@ -287,7 +337,27 @@ function Hero() {
             <Play className="mr-2 h-4 w-4" /> 클래스 살펴보기
           </Button>
         </div>
-        <div className="mt-16 grid grid-cols-3 gap-4 border-t border-border/50 pt-8 sm:max-w-md">
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background/50 px-4 py-2 backdrop-blur transition hover:border-neon/50 hover:text-foreground">
+            <input
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={onUpload}
+            />
+            <Play className="h-3.5 w-3.5" />
+            {videoUrl ? "배경 영상 교체" : "배경 영상 업로드"}
+          </label>
+          {videoUrl && (
+            <button
+              onClick={clearVideo}
+              className="rounded-full border border-border bg-background/50 px-4 py-2 backdrop-blur transition hover:text-foreground"
+            >
+              영상 제거
+            </button>
+          )}
+        </div>
+        <div className="mx-auto mt-14 grid w-full max-w-md grid-cols-3 gap-4 border-t border-border/50 pt-8">
           <Stat n="3" label="Class" />
           <Stat n="1:1" label="컨설팅" />
           <Stat n="100%" label="실전 기반" />
