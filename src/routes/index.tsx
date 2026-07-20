@@ -841,6 +841,8 @@ function ApplyForm() {
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="이름 *">
               <Input
+                name="applicant-name"
+                autoComplete="name"
                 value={form.name}
                 onChange={(e) => set("name", e.target.value)}
                 placeholder="홍길동"
@@ -849,6 +851,9 @@ function ApplyForm() {
             </Field>
             <Field label="전화번호 *">
               <Input
+                name="applicant-phone"
+                type="tel"
+                autoComplete="tel"
                 value={form.phone}
                 onChange={(e) => set("phone", e.target.value)}
                 placeholder="010-0000-0000"
@@ -857,7 +862,9 @@ function ApplyForm() {
             </Field>
             <Field label="이메일 *">
               <Input
+                name="applicant-email"
                 type="email"
+                autoComplete="email"
                 value={form.email}
                 onChange={(e) => set("email", e.target.value)}
                 placeholder="you@example.com"
@@ -866,7 +873,9 @@ function ApplyForm() {
             </Field>
             <Field label="비밀번호 * (신청 조회용)">
               <Input
+                name="applicant-lookup-password"
                 type="password"
+                autoComplete="new-password"
                 value={form.password}
                 onChange={(e) => set("password", e.target.value)}
                 placeholder="4자 이상"
