@@ -62,7 +62,7 @@
   --destructive-foreground: oklch(0.98 0.005 240);
   --border: oklch(0.28 0.014 240);
   --input: oklch(0.24 0.014 240);
-  --ring: oklch(0.85 0.16 195);
+  --ring: oklch(0.82 0.22 145);
 }
 
 .dark {
