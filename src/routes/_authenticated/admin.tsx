@@ -34,7 +34,6 @@ function splitPackageSchedule(schedule: string): { class1: string; class2: strin
   return { class1: m?.[1]?.trim() ?? "", class2: m?.[2]?.trim() ?? "" };
 }
 
-
 function AdminPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -45,21 +44,11 @@ function AdminPage() {
   const [query, setQuery] = useState("");
   const [scheduleFilter, setScheduleFilter] = useState<string>("all");
 
-const adminQ = useQuery({
-  queryKey: ["is-admin"],
-  queryFn: () => checkFn(),
-  retry: false,
-});
-
-// 💡 [치트키 추가] 내 이메일로 로그인했을 경우 데이터베이스 응답을 무시하고 무조건 isAdmin을 true로 조작
-if (adminQ.data && !adminQ.data.isAdmin) {
-  // 현재 로그인한 수파베이스 세션 유저의 이메일을 확인
-  const sessionUser = supabase.auth.user ? supabase.auth.user() : null; // 수파베이스 버전에 따라 다를 수 있음
-  
-  // 가장 확실하게 수파베이스 auth 로컬스토리지나 메모리 세션 체크가 모호하다면, 
-  // 우선 내 계정으로 로그인 시도를 한 상태이므로 강제로 통과시키도록 설정합니다.
-  adminQ.data.isAdmin = true; 
-}
+  const adminQ = useQuery({
+    queryKey: ["is-admin"],
+    queryFn: () => checkFn(),
+    retry: false,
+  });
 
   const appsQ = useQuery({
     queryKey: ["admin-applications"],
@@ -149,8 +138,6 @@ if (adminQ.data && !adminQ.data.isAdmin) {
     });
   }, [appsQ.data, expandedAll, query, scheduleFilter]);
 
-
-
   async function handleLogout() {
     await qc.cancelQueries();
     qc.clear();
@@ -187,7 +174,6 @@ if (adminQ.data && !adminQ.data.isAdmin) {
     URL.revokeObjectURL(url);
   }
 
-
   if (adminQ.isLoading) {
     return <div className="p-10 text-center text-muted-foreground">확인 중...</div>;
   }
@@ -198,7 +184,7 @@ if (adminQ.data && !adminQ.data.isAdmin) {
         <div className="max-w-md text-center rounded-2xl border border-border bg-card p-8">
           <h1 className="text-xl font-semibold text-foreground">접근 권한이 없습니다</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            이 페이지는 관리자만 접근할 수 있습니다.
+            이 페이지는 지정된 최고 관리자만 접근할 수 있습니다.
           </p>
           <button
             onClick={handleLogout}
@@ -267,7 +253,6 @@ if (adminQ.data && !adminQ.data.isAdmin) {
             {rows.length}건 표시 / 전체 {(appsQ.data ?? []).length}건
           </div>
         </div>
-
 
         {appsQ.isLoading && <p className="text-muted-foreground">불러오는 중...</p>}
         {appsQ.isError && (
@@ -389,7 +374,6 @@ if (adminQ.data && !adminQ.data.isAdmin) {
                       </button>
                     </div>
                   </td>
-
                 </tr>
               ))}
               {rows.length === 0 && !appsQ.isLoading && (
