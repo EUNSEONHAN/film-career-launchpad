@@ -630,6 +630,7 @@ async function openPortonePayment(args: {
     totalAmount: args.totalAmount,
     currency: "CURRENCY_KRW",
     customer: args.customer,
+    redirectUrl: `${window.location.origin}/?portone=${encodeURIComponent(args.paymentId)}`,
     ...req,
   } as Parameters<typeof PortOne.requestPayment>[0]);
   if (res?.code) {
