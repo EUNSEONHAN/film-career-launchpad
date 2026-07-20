@@ -43,8 +43,7 @@ function AdminPage() {
   const updateFn = useServerFn(updateApplicationStatus);
   const deleteFn = useServerFn(deleteApplication);
   const [query, setQuery] = useState("");
-  const [classFilter, setClassFilter] = useState<string>("all");
-  const [dateFilter, setDateFilter] = useState<string>("");
+  const [scheduleFilter, setScheduleFilter] = useState<string>("all");
 
   const adminQ = useQuery({
     queryKey: ["is-admin"],
@@ -69,40 +68,68 @@ function AdminPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-applications"] }),
   });
 
-  const rows = useMemo(() => {
+  // Expand PKG rows into virtual per-class rows so PKG applicants appear
+  // in both 1강 and 2강 filter buckets.
+  const expandedAll = useMemo(() => {
     const list = (appsQ.data ?? []) as any[];
-    const q = query.trim().toLowerCase();
-
-    // Expand: PKG rows appear as two virtual rows (class1, class2) for filtering.
-    const expanded: any[] = [];
+    const out: any[] = [];
     for (const r of list) {
       if (r.class_key === "package") {
         const { class1, class2 } = splitPackageSchedule(r.schedule);
-        expanded.push({ ...r, _viewClass: "class1", _viewSchedule: class1, _viewLabel: "1강 · 진로 탐색 (PKG)" });
-        expanded.push({ ...r, _viewClass: "class2", _viewSchedule: class2, _viewLabel: "2강 · 취업 서류 (PKG)" });
+        out.push({ ...r, _viewClass: "class1", _viewSchedule: class1, _viewLabel: "1강 · 진로 탐색 (PKG)" });
+        out.push({ ...r, _viewClass: "class2", _viewSchedule: class2, _viewLabel: "2강 · 취업 서류 (PKG)" });
       } else {
-        expanded.push({ ...r, _viewClass: r.class_key, _viewSchedule: r.schedule, _viewLabel: CLASS_LABELS[r.class_key] ?? r.class_key });
+        out.push({ ...r, _viewClass: r.class_key, _viewSchedule: r.schedule, _viewLabel: CLASS_LABELS[r.class_key] ?? r.class_key });
       }
     }
+    return out;
+  }, [appsQ.data]);
 
-    // When filter is "all", collapse PKG back to a single row.
-    const base = classFilter === "all"
-      ? list.map((r) => ({ ...r, _viewClass: r.class_key, _viewSchedule: r.schedule, _viewLabel: CLASS_LABELS[r.class_key] ?? r.class_key }))
-      : expanded.filter((r) => r._viewClass === classFilter);
+  const CLASS_SHORT: Record<string, string> = { class1: "1강", class2: "2강", class3: "3강" };
+  const extractDate = (s: string): string => s?.match(/(\d+월\s*\d+일)/)?.[1] ?? "";
+
+  // Build filter options from actual data: e.g. "8월 5일 1강", "8월 6일 1강", "3강".
+  const scheduleOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const r of expandedAll) {
+      const cls = CLASS_SHORT[r._viewClass] ?? r._viewClass;
+      const date = extractDate(r._viewSchedule);
+      const key = `${r._viewClass}|${date}`;
+      const label = date ? `${date} ${cls}` : cls;
+      if (!seen.has(key)) seen.set(key, label);
+    }
+    return Array.from(seen.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "ko"));
+  }, [expandedAll]);
+
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+
+    const base = scheduleFilter === "all"
+      ? ((appsQ.data ?? []) as any[]).map((r) => ({
+          ...r,
+          _viewClass: r.class_key,
+          _viewSchedule: r.schedule,
+          _viewLabel: CLASS_LABELS[r.class_key] ?? r.class_key,
+        }))
+      : expandedAll.filter((r) => {
+          const [cls, date] = scheduleFilter.split("|");
+          if (r._viewClass !== cls) return false;
+          if (date && extractDate(r._viewSchedule) !== date) return false;
+          return true;
+        });
 
     return base.filter((r) => {
-      if (q && !(
+      if (!q) return true;
+      return (
         r.name?.toLowerCase().includes(q) ||
         r.email?.toLowerCase().includes(q) ||
         r.phone?.toLowerCase().includes(q)
-      )) return false;
-      if (dateFilter) {
-        const d = new Date(r.created_at).toISOString().slice(0, 10);
-        if (d !== dateFilter) return false;
-      }
-      return true;
+      );
     });
-  }, [appsQ.data, query, classFilter, dateFilter]);
+  }, [appsQ.data, expandedAll, query, scheduleFilter]);
+
 
 
   async function handleLogout() {
