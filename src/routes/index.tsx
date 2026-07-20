@@ -144,6 +144,14 @@ function LandingPage() {
       }
   >(null);
 
+  // 1. 하이드레이션 에러 방지를 위한 안전장치 상태 추가
+  const [isMounted, setIsMounted] = useState(false);
+
+  // 2. 브라우저가 화면을 완전히 로드한 후에만 true로 변경
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // Handle PortOne redirect return (mobile flow)
   useEffect(() => {
     const url = new URL(window.location.href);
