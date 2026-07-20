@@ -16,11 +16,24 @@ export const Route = createFileRoute("/_authenticated/admin")({
 });
 
 const CLASS_LABELS: Record<string, string> = {
-  career: "1강 · 진로 탐색",
-  docs: "2강 · 취업 서류",
-  consult: "3강 · 1:1 컨설팅",
+  class1: "1강 · 진로 탐색",
+  class2: "2강 · 취업 서류",
+  class3: "3강 · 1:1 컨설팅",
   package: "스타터 PKG",
 };
+
+const PAYMENT_LABELS: Record<string, string> = {
+  card: "카드",
+  kakaopay: "카카오페이",
+  bank: "무통장입금",
+};
+
+function splitPackageSchedule(schedule: string): { class1: string; class2: string } {
+  const s = schedule ?? "";
+  const m = s.match(/1강:\s*(.*?)\s*(?:\+\s*2강:\s*(.*))?$/);
+  return { class1: m?.[1]?.trim() ?? "", class2: m?.[2]?.trim() ?? "" };
+}
+
 
 function AdminPage() {
   const navigate = useNavigate();
@@ -30,6 +43,8 @@ function AdminPage() {
   const updateFn = useServerFn(updateApplicationStatus);
   const deleteFn = useServerFn(deleteApplication);
   const [query, setQuery] = useState("");
+  const [classFilter, setClassFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("");
 
   const adminQ = useQuery({
     queryKey: ["is-admin"],
@@ -55,16 +70,40 @@ function AdminPage() {
   });
 
   const rows = useMemo(() => {
-    const list = appsQ.data ?? [];
-    if (!query.trim()) return list;
-    const q = query.toLowerCase();
-    return list.filter(
-      (r: any) =>
+    const list = (appsQ.data ?? []) as any[];
+    const q = query.trim().toLowerCase();
+
+    // Expand: PKG rows appear as two virtual rows (class1, class2) for filtering.
+    const expanded: any[] = [];
+    for (const r of list) {
+      if (r.class_key === "package") {
+        const { class1, class2 } = splitPackageSchedule(r.schedule);
+        expanded.push({ ...r, _viewClass: "class1", _viewSchedule: class1, _viewLabel: "1강 · 진로 탐색 (PKG)" });
+        expanded.push({ ...r, _viewClass: "class2", _viewSchedule: class2, _viewLabel: "2강 · 취업 서류 (PKG)" });
+      } else {
+        expanded.push({ ...r, _viewClass: r.class_key, _viewSchedule: r.schedule, _viewLabel: CLASS_LABELS[r.class_key] ?? r.class_key });
+      }
+    }
+
+    // When filter is "all", collapse PKG back to a single row.
+    const base = classFilter === "all"
+      ? list.map((r) => ({ ...r, _viewClass: r.class_key, _viewSchedule: r.schedule, _viewLabel: CLASS_LABELS[r.class_key] ?? r.class_key }))
+      : expanded.filter((r) => r._viewClass === classFilter);
+
+    return base.filter((r) => {
+      if (q && !(
         r.name?.toLowerCase().includes(q) ||
         r.email?.toLowerCase().includes(q) ||
-        r.phone?.toLowerCase().includes(q),
-    );
-  }, [appsQ.data, query]);
+        r.phone?.toLowerCase().includes(q)
+      )) return false;
+      if (dateFilter) {
+        const d = new Date(r.created_at).toISOString().slice(0, 10);
+        if (d !== dateFilter) return false;
+      }
+      return true;
+    });
+  }, [appsQ.data, query, classFilter, dateFilter]);
+
 
   async function handleLogout() {
     await qc.cancelQueries();
@@ -74,7 +113,7 @@ function AdminPage() {
   }
 
   function exportCsv() {
-    const list = appsQ.data ?? [];
+    const list = rows;
     const header = [
       "id","이름","연락처","이메일","클래스","일정","결제수단","금액","상태","결제ID","신청일","환불요청","환불완료",
     ];
@@ -84,8 +123,10 @@ function AdminPage() {
       ...list.map((r: any) =>
         [
           r.id, r.name, r.phone, r.email,
-          CLASS_LABELS[r.class_key] ?? r.class_key,
-          r.schedule, r.payment_method, r.amount, r.status,
+          r._viewLabel ?? (CLASS_LABELS[r.class_key] ?? r.class_key),
+          r._viewSchedule ?? r.schedule,
+          PAYMENT_LABELS[r.payment_method] ?? r.payment_method,
+          r.amount, r.status,
           r.portone_payment_id ?? r.payment_ref ?? "",
           r.created_at, r.refund_requested_at ?? "", r.refunded_at ?? "",
         ].map(escape).join(","),
@@ -99,6 +140,7 @@ function AdminPage() {
     a.click();
     URL.revokeObjectURL(url);
   }
+
 
   if (adminQ.isLoading) {
     return <div className="p-10 text-center text-muted-foreground">확인 중...</div>;
@@ -154,12 +196,38 @@ function AdminPage() {
             placeholder="이름·이메일·전화번호 검색"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full sm:w-80 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+            className="w-full sm:w-72 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
           />
+          <select
+            value={classFilter}
+            onChange={(e) => setClassFilter(e.target.value)}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="all">전체 클래스</option>
+            <option value="class1">1강 · 진로 탐색 (PKG 포함)</option>
+            <option value="class2">2강 · 취업 서류 (PKG 포함)</option>
+            <option value="class3">3강 · 1:1 컨설팅</option>
+            <option value="package">스타터 PKG만</option>
+          </select>
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+          {(dateFilter || classFilter !== "all" || query) && (
+            <button
+              onClick={() => { setDateFilter(""); setClassFilter("all"); setQuery(""); }}
+              className="rounded-md border border-border px-3 py-2 text-xs hover:bg-accent"
+            >
+              필터 초기화
+            </button>
+          )}
           <div className="text-xs text-muted-foreground">
-            총 {rows.length}건 / 전체 {(appsQ.data ?? []).length}건
+            {rows.length}건 표시 / 전체 {(appsQ.data ?? []).length}건
           </div>
         </div>
+
 
         {appsQ.isLoading && <p className="text-muted-foreground">불러오는 중...</p>}
         {appsQ.isError && (
@@ -183,7 +251,7 @@ function AdminPage() {
             </thead>
             <tbody>
               {rows.map((r: any) => (
-                <tr key={r.id} className="border-t border-border align-top">
+                <tr key={`${r.id}-${r._viewClass ?? r.class_key}`} className="border-t border-border align-top">
                   <td className="px-3 py-2 text-xs text-muted-foreground">
                     {new Date(r.created_at).toLocaleString("ko-KR")}
                   </td>
@@ -191,21 +259,22 @@ function AdminPage() {
                   <td className="px-3 py-2">{r.phone}</td>
                   <td className="px-3 py-2">{r.email}</td>
                   <td className="px-3 py-2">
-                    <div>{CLASS_LABELS[r.class_key] ?? r.class_key}</div>
-                    {r.schedule && (
+                    <div>{r._viewLabel ?? (CLASS_LABELS[r.class_key] ?? r.class_key)}</div>
+                    {(r._viewSchedule ?? r.schedule) && (
                       <div className="text-xs text-muted-foreground whitespace-pre-line">
-                        {r.schedule}
+                        {r._viewSchedule ?? r.schedule}
                       </div>
                     )}
                   </td>
                   <td className="px-3 py-2 text-xs">
-                    <div>{r.payment_method === "card" ? "카드/카카오" : "무통장"}</div>
+                    <div>{PAYMENT_LABELS[r.payment_method] ?? r.payment_method}</div>
                     {r.portone_payment_id && (
                       <div className="text-muted-foreground break-all">
                         {r.portone_payment_id}
                       </div>
                     )}
                   </td>
+
                   <td className="px-3 py-2">{r.amount?.toLocaleString()}원</td>
                   <td className="px-3 py-2">
                     <StatusBadge status={r.status} />
