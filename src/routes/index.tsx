@@ -36,7 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import heroBg from "@/assets/hero-bg.jpg";
+import defaultHeroVideo from "@/assets/cover_1080p.mp4.asset.json";
 import instructorImg from "@/assets/instructor.jpg";
 
 export const Route = createFileRoute("/")({
