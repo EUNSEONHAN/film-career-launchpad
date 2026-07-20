@@ -40,7 +40,7 @@ export const listApplications = createServerFn({ method: "GET" })
 
 export const updateApplicationStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string; status: string; refunded?: boolean }) => d)
+  .validator((d: { id: string; status: string; refunded?: boolean }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const patch: { status: string; refunded_at?: string } = { status: data.status };
@@ -55,7 +55,7 @@ export const updateApplicationStatus = createServerFn({ method: "POST" })
 
 export const deleteApplication = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string }) => d)
+  .validator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { error } = await context.supabase

@@ -44,7 +44,7 @@ const createSchema = z.object({
 });
 
 export const createApplication = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => createSchema.parse(data))
+  .validator((data: unknown) => createSchema.parse(data))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
@@ -95,7 +95,7 @@ const confirmSchema = z.object({
 });
 
 export const confirmBrowserPayment = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => confirmSchema.parse(data))
+  .validator((data: unknown) => confirmSchema.parse(data))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
@@ -125,7 +125,7 @@ export const confirmBrowserPayment = createServerFn({ method: "POST" })
 // Same as above but keyed by paymentId only — used by the mobile redirect
 // return flow where the client no longer holds the applicationId.
 export const confirmBrowserPaymentByPaymentId = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         paymentId: z.string().min(1).max(200),
@@ -173,7 +173,7 @@ const verifySchema = z.object({
 });
 
 export const verifyPayment = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => verifySchema.parse(data))
+  .validator((data: unknown) => verifySchema.parse(data))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
@@ -248,7 +248,7 @@ export const verifyPayment = createServerFn({ method: "POST" })
 // ---------- Verify by paymentId only (redirect return flow) ----------
 
 export const verifyPaymentByPaymentId = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z.object({ paymentId: z.string().min(1).max(200) }).parse(data),
   )
   .handler(async ({ data }) => {
@@ -327,7 +327,7 @@ const lookupSchema = z.object({
 });
 
 export const lookupApplications = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => lookupSchema.parse(data))
+  .validator((data: unknown) => lookupSchema.parse(data))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
@@ -402,7 +402,7 @@ const refundSchema = z.object({
 });
 
 export const requestRefund = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => refundSchema.parse(data))
+  .validator((data: unknown) => refundSchema.parse(data))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
