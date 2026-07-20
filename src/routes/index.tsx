@@ -40,8 +40,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import defaultHeroVideo from "src/assets/cover_1080p.mp4";
-import instructorImg from "src/assets/최지원.jpeg";
+import defaultHeroVideo from "/cover_1080p.mp4";
+import instructorImg from "/최지원.jpeg";
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
