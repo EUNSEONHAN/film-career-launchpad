@@ -601,9 +601,12 @@ async function openPortonePayment(args: {
   totalAmount: number;
   customer: { fullName: string; email: string; phoneNumber: string };
 }): Promise<{ ok: true } | { ok: false; message: string }> {
-  const { PORTONE_STORE_ID, PORTONE_CHANNEL_KEYS, isPortoneConfigured } =
-    await import("@/config/portone");
-  if (!isPortoneConfigured(args.method)) {
+  const { getPortoneClientConfig } = await import(
+    "@/lib/applications.functions"
+  );
+  const cfg = await getPortoneClientConfig();
+  const channelKey = cfg.channelKeys[args.method];
+  if (!cfg.storeId || !channelKey) {
     return {
       ok: false,
       message:
@@ -619,8 +622,9 @@ async function openPortonePayment(args: {
         }
       : { payMethod: "CARD" as const };
   const res = await PortOne.requestPayment({
-    storeId: PORTONE_STORE_ID,
-    channelKey: PORTONE_CHANNEL_KEYS[args.method],
+    storeId: cfg.storeId,
+    channelKey,
+
     paymentId: args.paymentId,
     orderName: args.orderName,
     totalAmount: args.totalAmount,

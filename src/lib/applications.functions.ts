@@ -15,6 +15,21 @@ const CLASS_NAMES: Record<string, string> = {
   package: "스타터 PKG (1+2)",
 };
 
+// ---------- PortOne public client config (read at runtime) ----------
+
+export const getPortoneClientConfig = createServerFn({ method: "GET" }).handler(
+  async () => {
+    return {
+      storeId: process.env.PORTONE_STORE_ID ?? "",
+      channelKeys: {
+        card: process.env.PORTONE_CHANNEL_KEY_CARD ?? "",
+        kakaopay: process.env.PORTONE_CHANNEL_KEY_KAKAOPAY ?? "",
+      },
+    };
+  },
+);
+
+
 // ---------- Create application (before payment window opens) ----------
 
 const createSchema = z.object({
