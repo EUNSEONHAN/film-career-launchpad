@@ -101,6 +101,7 @@ type Application = {
   schedule: string;
   payment: "card" | "bank";
   status: "pending" | "paid" | "refunded";
+  paymentRef?: string;
   createdAt: string;
 };
 
