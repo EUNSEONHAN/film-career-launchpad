@@ -84,7 +84,6 @@ const NAV = [
   { id: "home", label: "홈" },
   { id: "story", label: "클래스 소개" },
   { id: "classes", label: "가격안내" },
-  { id: "apply", label: "신청하기" },
   { id: "check", label: "신청 조회" },
 ];
 
@@ -195,12 +194,12 @@ function Nav({
             </button>
           ))}
           <Button
-            onClick={onOpenCheck}
+            onClick={() => scrollTo("apply")}
             variant="outline"
             size="sm"
             className="border-neon/40 text-neon hover:bg-neon hover:text-neon-foreground"
           >
-            신청 조회
+            신청하기
           </Button>
         </nav>
         <button
