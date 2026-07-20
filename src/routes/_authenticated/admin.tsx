@@ -222,6 +222,26 @@ function AdminPage() {
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex flex-col gap-1">
+                      {r.payment_method === "bank" && r.status !== "paid" && r.status !== "refunded" && (
+                        <button
+                          onClick={() =>
+                            updateMut.mutate({ id: r.id, status: "paid" })
+                          }
+                          className="rounded bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground hover:opacity-90"
+                        >
+                          입금 확인 완료
+                        </button>
+                      )}
+                      {r.payment_method === "bank" && r.status === "paid" && (
+                        <button
+                          onClick={() =>
+                            updateMut.mutate({ id: r.id, status: "deposit_pending" })
+                          }
+                          className="rounded border border-border px-2 py-1 text-xs hover:bg-accent"
+                        >
+                          입금 확인 취소
+                        </button>
+                      )}
                       <select
                         value={r.status}
                         onChange={(e) =>
@@ -260,6 +280,7 @@ function AdminPage() {
                       </button>
                     </div>
                   </td>
+
                 </tr>
               ))}
               {rows.length === 0 && !appsQ.isLoading && (
