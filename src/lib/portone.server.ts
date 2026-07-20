@@ -47,11 +47,9 @@ export class PortonePaymentPendingError extends Error {
 export async function getPortonePayment(
   paymentId: string,
 ): Promise<PortonePayment> {
-  const storeId = process.env.PORTONE_STORE_ID;
   const url = new URL(
     `${PORTONE_API_BASE}/payments/${encodeURIComponent(paymentId)}`,
   );
-  if (storeId) url.searchParams.set("storeId", storeId);
 
   // PortOne can briefly return 404 right after the browser SDK resolves,
   // especially for easy-pay providers whose approval is finalized asynchronously.
