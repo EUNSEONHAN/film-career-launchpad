@@ -606,6 +606,15 @@ function Classes() {
             </span>
           </div>
         </div>
+
+        <div className="mt-4 rounded-xl border border-border bg-surface/50 p-4 text-sm text-muted-foreground space-y-1">
+          <p>
+            <span className="font-medium text-foreground">취소/환불 안내</span> · 강좌 2일 전까지 100% 환불, 1일 전 50% 환불, 당일 환불 불가
+          </p>
+          <p>
+            <span className="font-medium text-foreground">문의</span> · f862@film862.com
+          </p>
+        </div>
       </div>
     </section>
   );
