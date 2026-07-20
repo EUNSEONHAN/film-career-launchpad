@@ -298,19 +298,11 @@ function Hero() {
   );
 }
 
-function Stat({ n, label }: { n: string; label: string }) {
-  return (
-    <div>
-      <div className="font-display text-2xl font-bold text-neon sm:text-3xl">{n}</div>
-      <div className="mt-1 text-xs text-muted-foreground sm:text-sm">{label}</div>
-    </div>
-  );
-}
-
 /* -------------------- STORY -------------------- */
 function Story() {
   return (
-    <section className="relative py-24 sm:py-32">
+    <section id="story" className="relative py-24 sm:py-32">
+
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <div className="mb-8 text-sm tracking-widest text-neon uppercase">
           From the founder
